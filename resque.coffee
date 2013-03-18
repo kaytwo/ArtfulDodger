@@ -193,11 +193,12 @@ startup_callback = (resque) ->
   # queue.push("movies", {"name": "star wars episode vi"})
   
 
-
+  i = 0
   queuepusher = (timeout) ->
     setInterval ->
-      queue.push("crawlqueue",{"offset":"blah"})
-      console.log("pushed.")
+      queue.push("crawlqueue",{"offset":i})
+      i++
+      console.log("pushed " + i.toString())
     , timeout
 
   queuepopper = (timeout) ->
@@ -238,16 +239,16 @@ startup_callback = (resque) ->
 
   namedlog = (s) ->
     console.log(s?.offset)
-  popforever = (quename, cb) ->
-      queue.pop quename, f = (result) ->
-        cb(result)
-        setTimeout (-> popforever(quename,cb)),500
+  popforever = (quename, cb,intv) ->
+    queue.pop quename, f = (result) =>
+      @cb = cb
+      @quename = quename
+      cb(result)
+      interval = setTimeout (=> popforever(@quename,@cb,intv)),500
+      clearTimeout intv
 
-  setTimeout (->
-    queue.pop "crawlqueue", (result) ->
-      popforever result, namedlog
-  ), 500
-  # popforever("crawlqueue",namedlog)
+
+  popforever("crawlqueue",namedlog)
 
 queue = new Resque("localhost", "7379", startup_callback)
 
