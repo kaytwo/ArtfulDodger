@@ -109,7 +109,6 @@ class Webdis
           rediscmd:   rediscmd
           callbackid: callbackid
           webdismsg:  webdis_response
-
         jsonified = JSON.stringify(payload)
 
         if callbackid != undefined and callbackid != null
@@ -166,11 +165,6 @@ class Webdis
     url = @construct_request(cmd)
     r   = @execute(url, callback, "LLEN")
 
-  # wait up to timeout secs for a unit to become available
-  bpop: (key, timeout, callback) ->
-    cmd = ["BRPOP", key, timeout.toString()]
-    url = @construct_request(cmd)
-    r   = @execute(url, callback, "BRPOP")
 
 class Resque
   constructor: (host, port, startup_callback) ->
@@ -185,22 +179,20 @@ class Resque
 
   pop: (queue, callback) ->
     key = "resque:queue:" + queue
-    console.log("popping.")
     @webdis.pop(key, callback)
 
   len: (queue, callback) ->
     key = "resque:queue:" + queue
     @webdis.len(key, callback)
 
-  bpop: (queue, timeout, callback) ->
-    key = "resque:queue:" + queue
-    @webdis.bpop(key, timeout, callback)
 
 startup_callback = (resque) ->
   # queue.push("movies", {"name": "short circuit"})
   # queue.push("movies", {"name": "star wars episode iv"})
   # queue.push("movies", {"name": "star wars episode v"})
   # queue.push("movies", {"name": "star wars episode vi"})
+  
+
 
   queuepusher = (timeout) ->
     setInterval ->
@@ -210,17 +202,14 @@ startup_callback = (resque) ->
 
   queuepopper = (timeout) ->
     setInterval ->
-      queue.pop("crawlqueue")
-      console.log("popped.")
+      queue.pop "crawlqueue",console.log("popped.")
     , timeout
 
-  loudpop = (qname, cb) ->
-    queue.pop qname, cb
 
-  popforever = (qname) ->
-    queue.bpop qname, 1500 ->
-      console.log("got pop result.")
-      setTimeout(popforever, 100)
+  repop = (resval) ->
+    console.log(resval)
+    setTimeout repop,1000,"crawlqueue"
+  
       
   
   printlen = (ql) ->
@@ -240,11 +229,21 @@ startup_callback = (resque) ->
     moviemonster(movie)
     phantom.exit()
 
+  delay = (time, fn, args...) ->
+    setTimeout fn, time, args...
   # queue.pop("movies", moviemonsterandexit)
   # queuepusher(100)
   # queuepopper(200)
   # queuechecker(1000)
-  popforever("crawlqueue")
+
+  namedlog = (s) ->
+    console.log(s?.offset)
+  popforever = (quename, cb) ->
+      queue.pop quename, f = (result) ->
+        cb(result)
+        setTimeout(popforever(quename,cb))
+
+  popforever("crawlqueue",namedlog)
 
 queue = new Resque("localhost", "7379", startup_callback)
 
@@ -253,6 +252,4 @@ queue = new Resque("localhost", "7379", startup_callback)
 
 # queue.len("crawlqueue", console.log)
 
-# loudpop("crawlqueue")
-
-
+# WIP: http://jsfiddle.net/SKMpV/201/
