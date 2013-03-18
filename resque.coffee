@@ -161,6 +161,17 @@ class Webdis
     url = @construct_request(cmd)
     r   = @execute(url, callback, "RPOP")
 
+  len: (key, callback) ->
+    cmd = ["LLEN",key]
+    url = @construct_request(cmd)
+    r   = @execute(url, callback, "LLEN")
+
+  # wait up to timeout secs for a unit to become available
+  bpop: (key, timeout, callback) ->
+    cmd = ["BRPOP", key, timeout.toString()]
+    url = @construct_request(cmd)
+    r   = @execute(url, callback, "BRPOP")
+
 class Resque
   constructor: (host, port, startup_callback) ->
     @host   = host
@@ -174,24 +185,74 @@ class Resque
 
   pop: (queue, callback) ->
     key = "resque:queue:" + queue
+    console.log("popping.")
     @webdis.pop(key, callback)
 
+  len: (queue, callback) ->
+    key = "resque:queue:" + queue
+    @webdis.len(key, callback)
+
+  bpop: (queue, timeout, callback) ->
+    key = "resque:queue:" + queue
+    @webdis.bpop(key, timeout, callback)
+
 startup_callback = (resque) ->
-  queue.push("movies", {"name": "short circuit"})
-  queue.push("movies", {"name": "star wars episode iv"})
-  queue.push("movies", {"name": "star wars episode v"})
-  queue.push("movies", {"name": "star wars episode vi"})
+  # queue.push("movies", {"name": "short circuit"})
+  # queue.push("movies", {"name": "star wars episode iv"})
+  # queue.push("movies", {"name": "star wars episode v"})
+  # queue.push("movies", {"name": "star wars episode vi"})
+
+  queuepusher = (timeout) ->
+    setInterval ->
+      queue.push("crawlqueue",{"offset":"blah"})
+      console.log("pushed.")
+    , timeout
+
+  queuepopper = (timeout) ->
+    setInterval ->
+      queue.pop("crawlqueue")
+      console.log("popped.")
+    , timeout
+
+  loudpop = (qname, cb) ->
+    queue.pop qname, cb
+
+  popforever = (qname) ->
+    queue.bpop qname, 1500 ->
+      console.log("got pop result.")
+      setTimeout(popforever, 100)
+      
+  
+  printlen = (ql) ->
+    console.log("current queue length: " + ql.toString()) # JSON.stringify(ql))
+
+  queuechecker = (timeout) ->
+    setInterval ->
+      queue.len("crawlqueue", printlen)
+    , timeout
 
   moviemonster = (movie) ->
     console.log("movie name is: " + movie.name)
-
-  queue.pop("movies", moviemonster)
-  queue.pop("movies", moviemonster)
+  
+  # queue.pop("movies", moviemonster)
 
   moviemonsterandexit = (movie) ->
     moviemonster(movie)
     phantom.exit()
 
-  queue.pop("movies", moviemonsterandexit)
+  # queue.pop("movies", moviemonsterandexit)
+  # queuepusher(100)
+  # queuepopper(200)
+  # queuechecker(1000)
+  popforever("crawlqueue")
 
-# queue = new Resque("localhost", "7379", startup_callback)
+queue = new Resque("localhost", "7379", startup_callback)
+
+# loudpop = ->
+#   queue.pop("crawlqueue",console.log("popped.")) while true
+
+# queue.len("crawlqueue", console.log)
+
+# loudpop("crawlqueue")
+
+
