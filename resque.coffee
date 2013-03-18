@@ -241,9 +241,13 @@ startup_callback = (resque) ->
   popforever = (quename, cb) ->
       queue.pop quename, f = (result) ->
         cb(result)
-        setTimeout(popforever(quename,cb))
+        setTimeout (-> popforever(quename,cb)),500
 
-  popforever("crawlqueue",namedlog)
+  setTimeout (->
+    queue.pop "crawlqueue", (result) ->
+      popforever result, namedlog
+  ), 500
+  # popforever("crawlqueue",namedlog)
 
 queue = new Resque("localhost", "7379", startup_callback)
 
@@ -253,3 +257,4 @@ queue = new Resque("localhost", "7379", startup_callback)
 # queue.len("crawlqueue", console.log)
 
 # WIP: http://jsfiddle.net/SKMpV/201/
+# todo: stash this, run phantomJS from file input, send to file output
