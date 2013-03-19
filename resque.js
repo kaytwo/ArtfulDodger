@@ -180,7 +180,7 @@ Resque = (function() {
   Resque.prototype.push = function(queue, object) {
     var key;
 
-    key = "resque:queue:" + queue;
+    key = "resque:" + queue;
     object = JSON.stringify(object);
     return this.webdis.push(key, object);
   };
@@ -188,7 +188,7 @@ Resque = (function() {
   Resque.prototype.pop = function(queue, callback) {
     var key;
 
-    key = "resque:queue:" + queue;
+    key = "resque:" + queue;
     return this.webdis.pop(key, callback);
   };
 

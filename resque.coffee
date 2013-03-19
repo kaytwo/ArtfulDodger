@@ -175,16 +175,16 @@ class Resque
     @webdis = new Webdis(host, port, startup_callback, @)
 
   push: (queue, object) ->
-    key    = "resque:queue:" + queue
+    key    = "resque:" + queue
     object = JSON.stringify(object)
     @webdis.push(key, object)
 
   pop: (queue, callback) ->
-    key = "resque:queue:" + queue
+    key = "resque:" + queue
     @webdis.pop(key, callback)
 
   len: (queue, callback) ->
-    key = "resque:queue:" + queue
+    key = "resque:" + queue
     @webdis.len(key, callback)
 
 

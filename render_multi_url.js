@@ -1,9 +1,10 @@
 // Render Multiple URLs to file
 phantom.injectJs("resque.js");
 
+var heartbeat = 1,
+    lastheartbeat = 0;
 var system = require('system'),
     fs = require('fs');
-
 /**
  * Render given urls
  * @param array of URLs to render
@@ -12,7 +13,6 @@ var system = require('system'),
  */
 
 function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
-  console.log("defining render");
 	var urlIndex = 0, // only for easy file naming
     	webpage = require('webpage'),
 		page = webpage.create();
@@ -23,7 +23,7 @@ function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
 		retrieve();
 	}
 	var retrieve = function() {
-    console.log("starting retrieve");
+    heartbeat++;
     queue.pop(inq,function(url){
       if (url){
         if ('url' in url) {
@@ -68,7 +68,6 @@ function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
 }
 
 function work(status, url, dom){
-  console.log("working");
 	if ( status !== "success") {
 		console.log("Unable to render '" + url + "'");
 	} else {
@@ -89,7 +88,13 @@ function startwork(resque) {
 var outq = "resultqueue",
     inq  = "crawlqueue";
 
+var queue = new Resque("localhost","7379",startwork);
+
+setInterval(function(){
+  console.log("heartbeat test: " + heartbeat + ", " + lastheartbeat);
+  lastheartbeat = heartbeat;
+},10000);
+
 // var queue = new Resque("localhost","7379",function(){console.log("started");});
 // setTimeout(function(){RenderUrlsToFile(work, waitrepeat)},500);
-var queue = new Resque("localhost","7379",startwork);
 // RenderUrlsToFile(arrayOfUrls, work , waitrepeat);
