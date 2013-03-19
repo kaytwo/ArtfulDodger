@@ -31,25 +31,19 @@ function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
           // page = webpage.create();
           page.viewportSize = { width: 800, height : 600 };
           page.settings.loadImages = false;
-          page.settings.userAgent = "WEBKIT YOU GUISE";
+          page.settings.userAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/532+ (KHTML, like Gecko) Version/4.0.2 Safari/530.19.1";
           page.onConsoleMessage = function(msg) {};
           page.onError = function(msg,trace){};
           page.open(url['url'], function(status) {
             // page.evaluate(function() { document.body.bgColor = 'white';});
-            var file = getFilename();
-            if ( status === "success") {
-              // todo: maybe take a breather and reboot the webpage if urlIndex % 100 = 99
-              window.setTimeout(function() {
-                renderedDom = page.evaluate(function(){return document.body.innerHTML;});
-                // page.render(file);
-                next(status, url['url'], renderedDom);
-               }, 250);
-            } else {
-              console.log("load failed, taking a breather");
-              setTimeout(function() {
-                next(status, url['url'], file);
-              },500);
-            }
+            // var file = getFilename();
+            // todo: maybe take a breather and reboot the webpage if urlIndex % 100 = 99
+            window.setTimeout(function() {
+              renderedDom = page.content;
+              // page.render(file);
+              next(status, url['url'], renderedDom);
+             }, 25);
+            
           });
         }
         else{
@@ -68,16 +62,13 @@ function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
 }
 
 function work(status, url, dom){
-	if ( status !== "success") {
-		console.log("Unable to render '" + url + "'");
-	} else {
     now = new Date().getTime();
     queue.push(outq,{"url":url,"dom":dom,"visitts":now});
 		console.log("Rendered '" + url + "' at '" + now + "'");
-	}
 }
 
 function waitrepeat(){
+  heartbeat++;
   console.log("exhausted queue. sleeping for it to refill");
   setTimeout(function(){RenderUrlsToFile(work,waitrepeat);},5000);
 }
@@ -91,9 +82,12 @@ var outq = "resultqueue",
 var queue = new Resque("localhost","7379",startwork);
 
 setInterval(function(){
-  console.log("heartbeat test: " + heartbeat + ", " + lastheartbeat);
+  // page hasn't successfully loaded in N seconds, die and be reborn
+  if(lastheartbeat == heartbeat){
+    phantom.exit();
+  }
   lastheartbeat = heartbeat;
-},10000);
+},15000);
 
 // var queue = new Resque("localhost","7379",function(){console.log("started");});
 // setTimeout(function(){RenderUrlsToFile(work, waitrepeat)},500);
