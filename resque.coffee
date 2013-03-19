@@ -237,18 +237,28 @@ startup_callback = (resque) ->
   # queuepopper(200)
   # queuechecker(1000)
 
-  namedlog = (s) ->
-    console.log(s?.offset)
-  popforever = (quename, cb,intv) ->
-    queue.pop quename, f = (result) =>
-      @cb = cb
-      @quename = quename
-      cb(result)
-      interval = setTimeout (=> popforever(@quename,@cb,intv)),500
-      clearTimeout intv
+  # namedlog = (s) ->
+  #   console.log(s?.offset)
 
+  (function() {
+    var namedlog, popforever;
 
-  popforever("crawlqueue",namedlog)
+    namedlog = function(s) {
+      return console.log(s);
+    };
+
+    popforever = function(quename, cb) {
+      pop(quename, function(result) {
+        cb(result);
+        setTimeout((function() {
+          popforever(quename, cb);
+        }), 500);
+      });
+    };
+    popforever("crawlqueue",namedlog);
+
+  }).call(this);
+
 
 queue = new Resque("localhost", "7379", startup_callback)
 

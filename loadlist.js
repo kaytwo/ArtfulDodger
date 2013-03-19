@@ -9,29 +9,31 @@ if (system.args.length > 1)
 var i,j,temparray,chunk=10;
 for(i = 1, j=arrayOfUrls.length; i<j; i+= chunk){
   temparray = arrayOfUrls.slice(i,i+chunk);
-  console.log("spinning off job for " + JSON.stringify(temparray));
   loadpages(temparray);
 }
 
 function loadpages(ar){
+
+  console.log("spinning off job for " + JSON.stringify(ar));
   page = require('webpage').create();
-  loadpage(arrayOfUrls);
+  page.settings.loadImages = false;
+  loadpage(ar);
 
 
-  function loadpage(array) {
+  function loadpage(url) {
     // var page = require('webpage').create();
-    page.loadme = array.shift();
-    page.settings.loadImages = false;
-    page.resources = [];
-
+    var resources = [];
+    
     // page.onConsoleMessage = function (msg) { console.log(msg); };
 
     page.onLoadStarted = function () {
+      console.log("load started.");
       page.startTime = new Date();
     };
 
     page.onResourceRequested = function (req) {
-      page.resources[req.id] = {
+      console.log("requested new item.");
+      resources[req.id] = {
         request: req,
         startReply: null,
         endReply: null,
@@ -41,25 +43,24 @@ function loadpages(ar){
 
     page.onResourceReceived = function (res) {
       if (res.stage === 'start') {
-        page.resources[res.id].startReply = res;
+        resources[res.id].startReply = res;
       }
       if (res.stage === 'end') {
-        page.resources[res.id].endReply = res;
+        // console.log("resources " + JSON.stringify(resources));
+        resources[res.id].endReply = res;
       }
-      page.resources[res.id].result = JSON.stringify(res);
+      resources[res.id].result = JSON.stringify(res);
     };
 
     page.onUrlChanged = function (res) {
       console.log("redirected: " + res);
     }
 
-    page.open(page.loadme, function (status) {
-      page.title = page.evaluate(function () {
-        return document.title;
-      });
+    page.open(url, function (status) {
+
       setTimeout(function (){
         // console.log("Loaded: " + page.url + " in " + (Date.now() - page.startTime) + " msec : " + array.length);
-        page.resources.forEach(function (resource) {
+        resources.forEach(function (resource) {
             var request = resource.request;
             var startReply = resource.startReply;
             var endReply = resource.endReply;
