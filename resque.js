@@ -1,3 +1,5 @@
+// from https://gist.github.com/kanzure/80badcf6c66c7a3d8d8e/raw/14f4ce32835b9e40e6b093c4d2d73a69b5c2b37a/resque.coffee
+
 var Resque, Webdis, startup_callback;
 
 phantom.injectJs("underscore.js");
@@ -193,7 +195,8 @@ Resque = (function() {
   return Resque;
 
 })();
-
+/* 
+ * example code
 startup_callback = function(resque) {
   var moviemonster, moviemonsterandexit;
 
@@ -220,3 +223,6 @@ startup_callback = function(resque) {
   };
   return queue.pop("movies", moviemonsterandexit);
 };
+
+queue = new Resque("localhost", "7379", startup_callback);
+*/

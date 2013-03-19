@@ -12,7 +12,7 @@ var system = require('system'),
  */
 
 function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
-  console.log("rendering.");
+  console.log("defining render");
 	var urlIndex = 0, // only for easy file naming
     	webpage = require('webpage'),
 		page = webpage.create();
@@ -23,14 +23,10 @@ function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
 		retrieve();
 	}
 	var retrieve = function() {
-    console.log("popping");
-    queue.pop("crawlqueue",function(url){
-      console.log("popped.");
-      // todo: check for nil, this might be sufficient?
+    console.log("starting retrieve");
+    queue.pop(inq,function(url){
       if (url){
-        console.log("got something: " + url);
         if ('url' in url) {
-          console.log("got url");
           urlIndex++;
           // page = webpage.create();
           page.viewportSize = { width: 800, height : 600 };
@@ -39,20 +35,20 @@ function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
           page.onConsoleMessage = function(msg) {};
           page.onError = function(msg,trace){};
           page.open(url['url'], function(status) {
-            console.log("load finished");
-            page.evaluate(function() { document.body.bgColor = 'white';});
+            // page.evaluate(function() { document.body.bgColor = 'white';});
             var file = getFilename();
-            console.log("load finished");
-
             if ( status === "success") {
-              console.log("load finished successfully");
+              // todo: maybe take a breather and reboot the webpage if urlIndex % 100 = 99
               window.setTimeout(function() {
-                page.render(file);
-                next(status, url, file);
+                renderedDom = page.evaluate(function(){return document.body.innerHTML;});
+                // page.render(file);
+                next(status, url['url'], renderedDom);
                }, 250);
             } else {
-              console.log("load failed");
-              next(status, url, file);
+              console.log("load failed, taking a breather");
+              setTimeout(function() {
+                next(status, url['url'], file);
+              },500);
             }
           });
         }
@@ -68,17 +64,17 @@ function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
       }
     });
 	}
-  // todo: take a breather and reboot the webpage if urlIndex % 100 = 99
-  console.log("starting retrieve");
-	retrieve();
+  retrieve();
 }
 
-function work(status, url, file){
+function work(status, url, dom){
   console.log("working");
 	if ( status !== "success") {
 		console.log("Unable to render '" + url + "'");
 	} else {
-		console.log("Rendered '" + url + "' at '" + file + "'");
+    now = new Date().getTime();
+    queue.push(outq,{"url":url,"dom":dom,"visitts":now});
+		console.log("Rendered '" + url + "' at '" + now + "'");
 	}
 }
 
@@ -90,6 +86,10 @@ function waitrepeat(){
 function startwork(resque) {
   RenderUrlsToFile(work, waitrepeat);
 }
+var outq = "resultqueue",
+    inq  = "crawlqueue";
 
+// var queue = new Resque("localhost","7379",function(){console.log("started");});
+// setTimeout(function(){RenderUrlsToFile(work, waitrepeat)},500);
 var queue = new Resque("localhost","7379",startwork);
 // RenderUrlsToFile(arrayOfUrls, work , waitrepeat);
