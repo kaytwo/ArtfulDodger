@@ -7,7 +7,7 @@ import time
 
 '''add urls to the queue, four per second, from the alexa top 1M'''
 
-infile = sys.argv[1]
+infile = sys.argv[1] if len(sys.argv) == 2 else 'top-1m.csv.bz2'
 
 r = redis.StrictRedis(host='localhost',port=6379,db=0)
 with bz2.BZ2File(infile) as f:
