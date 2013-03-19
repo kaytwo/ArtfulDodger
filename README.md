@@ -4,6 +4,7 @@ A companion to Oliver the crawler, who crawls all over.
 
 uses
 
+  * phantom.js
   * underscore.js
   * kanzure resque (https://gist.github.com/kanzure/80badcf6c66c7a3d8d8e)
   * jquery.js
