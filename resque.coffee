@@ -50,7 +50,9 @@ class Webdis
         # @page's GET callback triggers something like this:
         #   alert({"callbackid": 1, "wbdismsg": "{\"key\": \"value\"}"})
         jsonmsg = message.substring(self.msgtoken.length, message.length)
+        console.log("jsonmsg:" + JSON.stringify(jsonmsg))
         msg     = JSON.parse(jsonmsg)
+        console.log(JSON.stringify(msg))
 
         callbackid = msg["callbackid"]
         webdismsg  = msg["webdismsg"]
@@ -196,7 +198,7 @@ startup_callback = (resque) ->
   i = 0
   queuepusher = (timeout) ->
     setInterval ->
-      queue.push("crawlqueue",{"offset":i})
+      queue.push("crawlqueue",{"url":encodeURIComponent('http://ckanich.uicbits.net/?success=' + i)})
       i++
       console.log("pushed " + i.toString())
     , timeout
@@ -233,31 +235,13 @@ startup_callback = (resque) ->
   delay = (time, fn, args...) ->
     setTimeout fn, time, args...
   # queue.pop("movies", moviemonsterandexit)
-  # queuepusher(100)
+  queuepusher(100)
   # queuepopper(200)
   # queuechecker(1000)
 
   # namedlog = (s) ->
   #   console.log(s?.offset)
 
-  (function() {
-    var namedlog, popforever;
-
-    namedlog = function(s) {
-      return console.log(s);
-    };
-
-    popforever = function(quename, cb) {
-      pop(quename, function(result) {
-        cb(result);
-        setTimeout((function() {
-          popforever(quename, cb);
-        }), 500);
-      });
-    };
-    popforever("crawlqueue",namedlog);
-
-  }).call(this);
 
 
 queue = new Resque("localhost", "7379", startup_callback)

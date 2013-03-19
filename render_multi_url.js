@@ -1,4 +1,5 @@
 // Render Multiple URLs to file
+phantom.injectJs("resque.js");
 
 var system = require('system'),
     fs = require('fs');
@@ -9,64 +10,71 @@ var system = require('system'),
  * @param callbackPerUrl Function called after finishing each URL, including the last URL
  * @param callbackFinal Function called after finishing everything
  */
-function RenderUrlsToFile(urls, callbackPerUrl, callbackFinal) {
-	var urlIndex = 0, /* only for easy file naming */
+
+function RenderUrlsToFile(callbackPerUrl, callbackFinal) {
+  console.log("rendering.");
+	var urlIndex = 0, // only for easy file naming
     	webpage = require('webpage'),
 		page = webpage.create();
-	var getFilename = function() { return 'rendermulti-' + system.args[1].replace('in','out') + '-' + urlIndex + '.png'; }
+	var getFilename = function() { return 'rendermulti-' + urlIndex + '.png'; }
 	var next = function(status, url, file) {
 		// page.close();
 		callbackPerUrl(status, url, file);
 		retrieve();
 	}
 	var retrieve = function() {
-		if (urls.length > 0) {
-			url = urls.shift();
-			urlIndex++;
-			// page = webpage.create();
-			page.viewportSize = { width: 800, height : 600 };
-      page.settings.loadImages = false;
-			page.settings.userAgent = "WEBKIT YOU GUISE";
-      page.onConsoleMessage = function(msg) {};
-      page.onError = function(msg,trace){};
-			page.open(url, function(status) {
-        page.evaluate(function() { document.body.bgColor = 'white';});
-				var file = getFilename();
-				if ( status === "success") {
-					window.setTimeout(function() {
-						page.render(file);
-						next(status, url, file);
-				   }, 250);
-				} else {
-					next(status, url, file);
-				}
-			});
-		} else {
-			callbackFinal();
-		}
+    console.log("popping");
+    queue.pop("crawlqueue",function(url){
+      console.log("popped.");
+      // todo: check for nil, this might be sufficient?
+      if (url){
+        console.log("got something: " + url);
+        if ('url' in url) {
+          console.log("got url");
+          urlIndex++;
+          // page = webpage.create();
+          page.viewportSize = { width: 800, height : 600 };
+          page.settings.loadImages = false;
+          page.settings.userAgent = "WEBKIT YOU GUISE";
+          page.onConsoleMessage = function(msg) {};
+          page.onError = function(msg,trace){};
+          page.open(url['url'], function(status) {
+            console.log("load finished");
+            page.evaluate(function() { document.body.bgColor = 'white';});
+            var file = getFilename();
+            console.log("load finished");
+
+            if ( status === "success") {
+              console.log("load finished successfully");
+              window.setTimeout(function() {
+                page.render(file);
+                next(status, url, file);
+               }, 250);
+            } else {
+              console.log("load failed");
+              next(status, url, file);
+            }
+          });
+        }
+        else{
+          console.log("discarding garbage from queue.");
+          // retrieve();
+        }
+      }
+      else {
+          console.log("got nothing, finishing");
+          page.close();
+          callbackFinal();
+      }
+    });
 	}
+  // todo: take a breather and reboot the webpage if urlIndex % 100 = 99
+  console.log("starting retrieve");
 	retrieve();
 }
 
-var arrayOfUrls;
-if ( system.args.length > 1 ) {
-   fd = fs.open(system.args[1],'r');
-   arrayOfUrls = fd.read().split("\n");
-    // arrayOfUrls = Array.prototype.slice.call(system.args, 1);
-} else {
-    // Default (no args passed)
-    console.log("Usage: phantomjs render_multi_url.js [domain.name1, domain.name2, ...]");
-    arrayOfUrls = [
-      'http://www.google.com',
-      'http://www.bbc.co.uk',
-      'http://www.phantomjs.org'
-    ];
-}
-var i = 0;
-setInterval(function(){
-  arrayOfUrls.push('http://ckanich.uicbits.net/?new=' + i); i++},500);
-
 function work(status, url, file){
+  console.log("working");
 	if ( status !== "success") {
 		console.log("Unable to render '" + url + "'");
 	} else {
@@ -76,7 +84,12 @@ function work(status, url, file){
 
 function waitrepeat(){
   console.log("exhausted queue. sleeping for it to refill");
-  setTimeout(function(){RenderUrlsToFile(arrayOfUrls,work,waitrepeat);},5000);
+  setTimeout(function(){RenderUrlsToFile(work,waitrepeat);},5000);
 }
 
-RenderUrlsToFile(arrayOfUrls, work , waitrepeat);
+function startwork(resque) {
+  RenderUrlsToFile(work, waitrepeat);
+}
+
+var queue = new Resque("localhost","7379",startwork);
+// RenderUrlsToFile(arrayOfUrls, work , waitrepeat);
