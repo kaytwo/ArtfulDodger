@@ -9,6 +9,24 @@ var heartbeat = 1,
     out_queue_name = "resultqueue",
     in_queue_name  = "crawlqueue",
     queue,
+    create_page = function () {
+
+        var page = webpage.create();
+
+        page.viewportSize = {
+            width: 800,
+            height : 600
+        };
+        page.settings.loadImages = false;
+        page.settings.userAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/532+ (KHTML, like Gecko) Version/4.0.2 Safari/530.19.1";
+        page.onConsoleMessage = function(msg) {};
+        page.onError = function(msg, trace) {};
+
+        return page;
+    },
+    // For now we can try just creating a single page object and reusing it,
+    // but might need to fall back to creating one per request
+    a_page = create_page(),
     process_result = function (a_status, a_url, a_dom) {
 
         var now = new Date().getTime();
@@ -50,24 +68,6 @@ var heartbeat = 1,
             }
         });
     },
-    create_page = function () {
-
-        var page = webpage.create();
-
-        page.viewportSize = {
-            width: 800,
-            height : 600
-        };
-        page.settings.loadImages = false;
-        page.settings.userAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/532+ (KHTML, like Gecko) Version/4.0.2 Safari/530.19.1";
-        page.onConsoleMessage = function(msg) {};
-        page.onError = function(msg, trace) {};
-
-        return page;
-    },
-    // For now we can try just creating a single page object and reusing it,
-    // but might need to fall back to creating one per request
-    a_page = create_page(),
     queue_empty = function () {
 
         heartbeat++;
