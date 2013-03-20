@@ -51,6 +51,7 @@ var heartbeat = 1,
             } else if (!item.url) {
 
                 console.log("discarding garbage from queue.");
+                read_queue();
 
             } else {
 
