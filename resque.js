@@ -2,8 +2,6 @@
 
 var Resque, Webdis, startup_callback;
 
-phantom.injectJs("underscore.js");
-
 Webdis = (function() {
   Webdis.prototype.msgtoken = "SPLAT: ";
 
@@ -111,7 +109,7 @@ Webdis = (function() {
   Webdis.prototype.store_callback = function(callback) {
     var id;
 
-    id = _.keys(this.callbacks).length;
+    id = Object.keys(this.callbacks).length;
     this.callbacks[id] = callback;
     return id;
   };
