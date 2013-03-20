@@ -22,7 +22,7 @@ TODO
   * save rendered screenshot
   * save redirect chain
   * redis LRU of recently visited resources?
-  * add functionality from ariya/phantomjs@52883ced681854f453029822f466b6a4a18c0e3e to timeout long running requests instead of bombing the entire process
+  * add functionality from ariya@52883ced681854f453029822f466b6a4a18c0e3e to timeout long running requests instead of bombing the entire process
 
 current functionality
 =====================
