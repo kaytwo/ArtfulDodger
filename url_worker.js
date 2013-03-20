@@ -15,7 +15,7 @@ var heartbeat = 1,
 
         page.viewportSize = {
             width: 800,
-            height : 600
+            height: 600
         };
         page.settings.loadImages = false;
         page.settings.userAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/532+ (KHTML, like Gecko) Version/4.0.2 Safari/530.19.1";
