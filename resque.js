@@ -3,7 +3,7 @@
 var Resque, Webdis, startup_callback;
 
 Webdis = (function() {
-  Webdis.prototype.msgtoken = "SPLAT: ";
+  Webdis.prototype.msgtoken = "SECRETZ: ";
 
   function Webdis(host, port, startup_callback, resque) {
     var onAlert, onLoadFinished, self;
@@ -66,6 +66,7 @@ Webdis = (function() {
 
   Webdis.prototype.execute = function(url, callback, rediscmd) {
     var evil, evilargs, storedid;
+    console.log("called execute");
 
     storedid = this.store_callback(callback);
     evilargs = {
@@ -77,12 +78,14 @@ Webdis = (function() {
     evil = function(args) {
       var callbackid, msgtoken, supercallback;
 
+      console.log("executing evil");
       msgtoken = args.msgtoken;
       url = args.url;
       callbackid = args.callbackid;
       rediscmd = args.rediscmd;
       supercallback = function(webdis_response) {
         var jsonified, payload;
+        console.log("webdis said " + JSON.stringify(webdis_response));
 
         payload = {
           rediscmd: rediscmd,
@@ -94,6 +97,7 @@ Webdis = (function() {
           return alert(msgtoken + jsonified);
         }
       };
+      console.log("calling supercallback with jquery");
       return window.$.get(url, supercallback);
     };
     return this.page.evaluate(evil, evilargs);
@@ -110,6 +114,7 @@ Webdis = (function() {
     var id;
 
     id = Object.keys(this.callbacks).length;
+    console.log("storing a callback at id" + id);
     this.callbacks[id] = callback;
     return id;
   };
@@ -187,6 +192,7 @@ Resque = (function() {
     var key;
 
     key = "resque:" + queue;
+    console.log("called pop");
     return this.webdis.pop(key, callback);
   };
 

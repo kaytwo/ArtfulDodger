@@ -26,7 +26,7 @@ var heartbeat = 1,
     },
     // For now we can try just creating a single page object and reusing it,
     // but might need to fall back to creating one per request
-    a_page = create_page(),
+    // a_page = create_page(),
     process_result = function (a_status, a_url, a_dom) {
 
         var now = new Date().getTime();
@@ -41,9 +41,9 @@ var heartbeat = 1,
         console.log("Rendered '" + a_url + "' at '" + now + "'");
     },
     read_queue = function () {
+        console.log("in read queue calling pop");
 
         queue.pop(in_queue_name, function (item) {
-
             if (!item) {
 
                 queue_empty();
@@ -51,10 +51,12 @@ var heartbeat = 1,
             } else if (!item.url) {
 
                 console.log("discarding garbage from queue.");
-                read_queue();
+                setTimeout(read_queue,250);
+                return;
 
             } else {
 
+                a_page = create_page();
                 a_page.open(item.url, function (status) {
 
                     console.log("just finished reading " + item.url);
@@ -62,7 +64,9 @@ var heartbeat = 1,
 
                         // Do something with rendered dom, why not?
                         process_result(status, item.url, a_page.content);
-                        read_queue();
+                        console.log("requeueing read_queue");
+                        setTimeout(read_queue,250);
+                        return;
 
                     }, 25);
                 });
@@ -79,13 +83,16 @@ var heartbeat = 1,
     };
 
 queue = new Resque("localhost", "7379", function (resque) {
-    read_queue();
+    // for(var i = 0; i<3; i++){
+        read_queue();
+    // }
 });
 
 setInterval(function () {
 
     // page hasn't successfully loaded in N seconds, die and be reborn
     if (lastheartbeat === heartbeat) {
+        console.log("exited due to lack of forward progress.");
         phantom.exit();
     }
     lastheartbeat = heartbeat;
