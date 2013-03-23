@@ -51,8 +51,6 @@ var heartbeat = 1,
                 a_page.onResourceTimeout = function(req){
                 };
                 a_page.onResourceRequested = function(req){
-                  console.log('requesting ' + req.url);
-
                   heartbeat++;
                 };
                 a_page.onLoadFinished = function(status) {
@@ -71,7 +69,6 @@ var heartbeat = 1,
                 };
                 a_page.onNavigationRequested = function(url, type, willNavigate, main) {
                   if (willNavigate && main){
-                    console.log('navigating to ' + url);
                     a_page.redirchain.push(url);
                     if (a_page.tocb)
                       clearTimeout(a_page.tocb);
