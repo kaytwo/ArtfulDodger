@@ -18,28 +18,23 @@ var heartbeat = 1,
             height: 600
         };
         page.settings.loadImages = false;
-        page.settings.userAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/532+ (KHTML, like Gecko) Version/4.0.2 Safari/530.19.1";
-        page.settings.resourceTimeout = 10*1000;
+        // most popular browser to wikimedia sites
+        page.settings.userAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.60 Safari/537.17";
+        page.settings.resourceTimeout = 5*1000;
         page.onConsoleMessage = function(msg) {};
         page.onError = function(msg, trace) {};
 
         return page;
     },
-    // For now we can try just creating a single page object and reusing it,
-    // but might need to fall back to creating one per request
-    // a_page = create_page(),
-    process_result = function (a_status, a_url, thispage) {
-
+    process_result = function (a_status, a_url, thispage, redirs) {
         var now = new Date().getTime();
-        heartbeat++;
-
         queue.push(out_queue_name, {
             url: a_url,
             dom: thispage,
+            redirs: redirs,
             visits: now
         });
-
-        console.log("Rendered '" + a_url + "' at '" + now + "'");
+        // console.log("Rendered redirchain " + JSON.stringify(redirs) + " at " + now );
     },
     read_queue = function () {
 
@@ -47,44 +42,44 @@ var heartbeat = 1,
             if (!item) {
                 setTimeout(queue_empty,25);
                 return;
-
-
             } else if (!item.url) {
-
                 setTimeout(read_queue,25);
                 return;
-
             } else {
-
                 a_page = create_page();
-                a_page.alreadyfinished = false;
-                /*
+                a_page.redirchain = [];
+                a_page.onResourceTimeout = function(req){
+                };
                 a_page.onResourceRequested = function(req){
-                  console.log('requested: ' + JSON.stringify(req, undefined, 4));
-                };
+                  console.log('requesting ' + req.url);
 
-                a_page.onResourceReceived = function(res){
-                  console.log('received: ' + JSON.stringify(res, undefined, 4));
+                  heartbeat++;
                 };
-                */
-                a_page.open(item.url, function (status) {
+                a_page.onLoadFinished = function(status) {
+                    if (a_page.tocb)
+                      clearTimeout(a_page.tocb);
                     
-                    if(!a_page.alreadyfinished){
-                      a_page.alreadyfinished = true;
-                      // give the page 3 seconds for any meta refresh redirects
-                      // to complete
-
-                      window.setTimeout(function () {
-
-                          // Do something with rendered dom, why not?
+                    // give the page 3 seconds for any sneaky redirects
+                    a_page.tocb = setTimeout(function () {
                           dom_content = a_page.content;
-                          process_result(status, item.url, dom_content);
+                          redirs = a_page.redirchain.slice(0);
+                          process_result(status, item.url, dom_content, redirs);
                           a_page.close();
                           setTimeout(read_queue,25);
                           return;
+                    }, 3000);
+                };
+                a_page.onNavigationRequested = function(url, type, willNavigate, main) {
+                  if (willNavigate && main){
+                    console.log('navigating to ' + url);
+                    a_page.redirchain.push(url);
+                    if (a_page.tocb)
+                      clearTimeout(a_page.tocb);
 
-                      }, 3000);
-                    }
+                  }
+                };
+
+                a_page.open(item.url, function (status) {
                 });
             }
         });
