@@ -12,7 +12,10 @@ while True:
   res = r.brpop('resque:resultqueue',5)
   if res:
     r.incr('resque:outputs',1)
-    val = json.loads(res[1])
+    try:
+        val = json.loads(res[1])
+    except:
+        continue
     filekey = md5(val['url']).hexdigest()
     with open(outpath + '/domout-' + filekey,'w') as f:
       f.write(res[1])

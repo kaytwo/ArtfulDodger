@@ -64,28 +64,25 @@ Webdis = (function() {
     this.page.open("http://" + this.host + ":" + this.port + "/lpush", onLoadFinished);
   }
 
-  Webdis.prototype.execute = function(url, callback, rediscmd) {
+  Webdis.prototype.execute = function(ajax, callback, rediscmd) {
     var evil, evilargs, storedid;
-    console.log("called execute");
 
     storedid = this.store_callback(callback);
     evilargs = {
       msgtoken: this.msgtoken,
-      url: url,
+      ajax: ajax,
       callbackid: storedid,
       rediscmd: rediscmd
     };
     evil = function(args) {
       var callbackid, msgtoken, supercallback;
 
-      console.log("executing evil");
       msgtoken = args.msgtoken;
-      url = args.url;
+      ajax_args = args.ajax;
       callbackid = args.callbackid;
       rediscmd = args.rediscmd;
       supercallback = function(webdis_response) {
         var jsonified, payload;
-        console.log("webdis said " + JSON.stringify(webdis_response));
 
         payload = {
           rediscmd: rediscmd,
@@ -97,8 +94,9 @@ Webdis = (function() {
           return alert(msgtoken + jsonified);
         }
       };
-      console.log("calling supercallback with jquery");
-      return window.$.get(url, supercallback);
+      ajax_args.success = supercallback;
+
+      return window.$.ajax(ajax_args);
     };
     return this.page.evaluate(evil, evilargs);
   };
@@ -106,7 +104,9 @@ Webdis = (function() {
   Webdis.prototype.construct_request = function(components) {
     var url;
 
-    url = "http://" + this.host + ":" + this.port + "/" + components.map(encodeURIComponent).join("/");
+    url = {url:"http://" + this.host + ":" + this.port + "/" + components.slice(0,-1).map(encodeURIComponent).join("/"), type:"PUT"}
+    if (components.length > 1)
+      url.data = components[components.length-1];
     return url;
   };
 
@@ -114,7 +114,6 @@ Webdis = (function() {
     var id;
 
     id = Object.keys(this.callbacks).length;
-    console.log("storing a callback at id" + id);
     this.callbacks[id] = callback;
     return id;
   };
@@ -192,7 +191,6 @@ Resque = (function() {
     var key;
 
     key = "resque:" + queue;
-    console.log("called pop");
     return this.webdis.pop(key, callback);
   };
 
