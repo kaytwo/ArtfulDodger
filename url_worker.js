@@ -32,7 +32,7 @@ var heartbeat = 1,
             url: a_url,
             dom: thispage,
             redirs: redirs,
-            visits: now
+            ts: now
         });
         // console.log("Rendered redirchain " + JSON.stringify(redirs) + " at " + now );
     },
