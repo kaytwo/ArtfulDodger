@@ -19,7 +19,7 @@ var heartbeat = 1,
         };
         page.settings.loadImages = false;
         page.settings.userAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/532+ (KHTML, like Gecko) Version/4.0.2 Safari/530.19.1";
-        page.settings.timeout = 10*1000;
+        page.settings.resourceTimeout = 10*1000;
         page.onConsoleMessage = function(msg) {};
         page.onError = function(msg, trace) {};
 
@@ -71,6 +71,8 @@ var heartbeat = 1,
                     
                     if(!a_page.alreadyfinished){
                       a_page.alreadyfinished = true;
+                      // give the page 3 seconds for any meta refresh redirects
+                      // to complete
 
                       window.setTimeout(function () {
 
@@ -81,7 +83,7 @@ var heartbeat = 1,
                           setTimeout(read_queue,25);
                           return;
 
-                      }, 25);
+                      }, 3000);
                     }
                 });
             }
@@ -98,7 +100,7 @@ var heartbeat = 1,
 
 
 queue = new Resque("localhost", "7379", function (resque) {
-    read_queue();
+  read_queue();
 });
 setInterval(function () {
 
