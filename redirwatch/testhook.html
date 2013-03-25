@@ -1,23 +1,23 @@
 <html>
   <head>
     <script>
+      var origst = setTimeout;
       eval("var setTimeout;");
-      window.origst = setTimeout;
-      // this fn should take multiple args and handle properly, incl dreaded eval
       setTimeout = function(){
+        console.log("fake settimeout called by " + window.currentScript);
         // todo: support (code, delay) version of setTimeout, UGH
         // this may not be safe depending on how much of a jerk author is
-        console.log("intercepted call to setTimeout");
-        stargs = Array.prototype.slice.call(arguments);
+        // todo: hook other execution interruption tricks like onmousemove
+        var stargs = Array.prototype.slice.call(arguments);
         var curscript = window.currentScript;
         var wrapper = function(){
           var f = stargs[0]
-          var t = stargs[1]
           var fargs = stargs.slice(2);
-          window.currentScirpt = curscript;
+          window.currentScript = curscript;
+          console.log("settimeout wrapper called, evaluating real fn");
           f.apply(this,fargs);
         };
-        return window.origst(wrapper,stargs[1]);
+        return origst(wrapper,stargs[1]);
       }
       // we don't actually need to hook createElement,
       // but this might come in handy later
@@ -38,10 +38,28 @@
           console.log(window.currentScript + " created a " + ev.target.tagName + " pointing at " + ev.target.src);
         }
       },false);
+      document.addEventListener("DOMContentLoaded",function(ev){
+      },false);
     </script>
   </head>
   <body>
-  <iframe id="derp2"></iframe>
+    <iframe id="derp2"></iframe>
+    <script>
+      // not sure this is needed. if script comes in remotely,
+      // it will get picked up by the script modifier.
+      // if script is part of base page, it will be picked up
+      // as base page, as long as all execution pauses are caught
+      var ifs = document.getElementsByTagName("iframe");
+      for (var i = 0; i < ifs.length; i++){
+        console.log("adding attrmodified for iframe");
+        ifs[i].addEventListener('DOMAttrModified',function(ev){
+          console.log("dom attr modified for " + ev.target);
+          if (ev.target.tagName.toLowerCase() === "iframe"){
+            console.log(window.currentScript + " modified a " + ev.target.tagName + " pointing at " + ev.target.src);
+          }
+        },false);
+      }
+    </script>
   <div id="target">
     target text
   </div>
