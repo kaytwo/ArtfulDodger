@@ -26,6 +26,7 @@ TODO
   * save rendered screenshot
   * redis LRU of recently visited pages
   * put all workers behind squid
+  * modify javascript for 'taint tracking' using onResourceRequested and networkRequest.changeUrl()
 
 LIMITATIONS
 ===========
@@ -33,6 +34,34 @@ LIMITATIONS
 
 current functionality
 =====================
+
+the python scripts form a companion that can fill the request queue with a
+subset of the alexa top 1m, and then drain it to the temp directory for
+inspection. If you want to use AD, you should rewire these scripts to source
+and sink your URLs/results in a fashion that meets your needs.
+
+For a quick demo, you will need webdis running on localhost.
+
+To load N (default 100) URLs from the alexa top 1m, run:
+
+`python url_source.py N`
+
+Then, you can either fire up one worker with
+
+`phantomjs url_worker.js`
+
+Or N workers (defaults to 25)
+
+`./launch.sh N`
+
+They will begin visiting URLs and putting their results in the result queue.
+
+To drain the result queue into DIR (default: /tmp/), run:
+
+`python result_sink.py DIR`
+
+If all goes well, your visited URLs will start showing up in that directory as 
+`domout-$(MD5_of_URL)` which contains the redirchain, url name, visit timestamp, and first 100 characters of the dom, and `domout-$(MD5_of_URL).png` which contains the rendered page with no images loaded.
 
 redis queue in of json'd {"url":target-url}
 saves computed dom, doesn't load images.
