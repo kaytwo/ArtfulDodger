@@ -14,23 +14,26 @@ CONTRIB
 TODO
 ====
 
-  * customize timeouts, retries, UA, ...
+  * customize timeouts, retries, UA, image loading...
   * blacklisting functionality
     * save off a pending main-brower-window request each time it happens
     * checking against a don't-need-to-load-this blacklist
     * request.abort() and save the abort reason in `a_page`
 
-  * blacklist includes from heavy hitters (fb, google, youtube) for faster loads
-  * blacklist css
-  * pending queue to detect load failures
-  * save rendered screenshot
-  * redis LRU of recently visited pages
+  * blacklist using request.abort()
+    * heavy hitters (fb, google, youtube)
+    * css
+  * add a pending queue and pending queue watcher to detect load failures
+  * LRU of recently visited pages
   * put all workers behind squid
-  * modify javascript for 'taint tracking' using onResourceRequested and networkRequest.changeUrl()
+  * modify javascript for 'taint tracking' using onResourceRequested and
+    networkRequest.changeUrl()
 
-LIMITATIONS
-===========
-  * Transfer-encoding: chunked responses will be lost if not terminated properly
+LIMITATIONS / BUGS
+==================
+
+  * `Transfer-encoding: chunked` responses might be lost if not terminated
+    properly
 
 current functionality
 =====================
@@ -60,9 +63,7 @@ To drain the result queue into DIR (default: /tmp/), run:
 
 `python result_sink.py DIR`
 
-If all goes well, your visited URLs will start showing up in that directory as 
-`domout-$(MD5_of_URL)` which contains the redirchain, url name, visit timestamp, and first 100 characters of the dom, and `domout-$(MD5_of_URL).png` which contains the rendered page with no images loaded.
-
-redis queue in of json'd {"url":target-url}
-saves computed dom, doesn't load images.
-redis queue out of json'd {dom:dom,url:url,ts:ts,redirs:[redirs]}
+If all goes well, your visited URLs will start showing up in that directory as
+`domout-$(MD5_of_URL)` which contains the redirchain, url name, visit
+timestamp, and first 100 characters of the dom, and `domout-$(MD5_of_URL).png`
+which contains the rendered page with no images loaded.
