@@ -1,4 +1,5 @@
-// Render Multiple URLs to file
+// pull URLs to load from crawlqueue, load them,
+// then store the resulting DOM and redirchain to resultqueue
 phantom.injectJs("resque.js");
 
 var heartbeat = 1,
@@ -56,8 +57,10 @@ var heartbeat = 1,
                 a_page.onLoadFinished = function(status) {
                     if (a_page.tocb)
                       clearTimeout(a_page.tocb);
+                    // wiggle the mouse
+                    a_page.sendEvent('mousemove',200,200);
                     
-                    // give the page 3 seconds for any sneaky redirects
+                    // give the page 1.2 seconds for any sneaky redirects
                     a_page.tocb = setTimeout(function () {
                           dom_content = a_page.content;
                           redirs = a_page.redirchain.slice(0);
@@ -65,7 +68,7 @@ var heartbeat = 1,
                           a_page.close();
                           setTimeout(read_queue,25);
                           return;
-                    }, 3000);
+                    }, 1200);
                 };
                 a_page.onNavigationRequested = function(url, type, willNavigate, main) {
                   if (willNavigate && main){
