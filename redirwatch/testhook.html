@@ -1,0 +1,60 @@
+<html>
+  <head>
+    <script>
+      eval("var setTimeout;");
+      window.origst = setTimeout;
+      // this fn should take multiple args and handle properly, incl dreaded eval
+      setTimeout = function(){
+        // todo: support (code, delay) version of setTimeout, UGH
+        // this may not be safe depending on how much of a jerk author is
+        console.log("intercepted call to setTimeout");
+        stargs = Array.prototype.slice.call(arguments);
+        var curscript = window.currentScript;
+        var wrapper = function(){
+          var f = stargs[0]
+          var t = stargs[1]
+          var fargs = stargs.slice(2);
+          window.currentScirpt = curscript;
+          f.apply(this,fargs);
+        };
+        return window.origst(wrapper,stargs[1]);
+      }
+      // we don't actually need to hook createElement,
+      // but this might come in handy later
+      /*
+      document.createElement = function myCreate(create) {
+        return function innerCreate() {
+          // var myCaller = arguments.callee.caller;
+          var ret = create.apply(this, arguments);
+          if (ret.tagName.toLowerCase() === "iframe") {
+            console.log("iframe created by " + window.currentScript);
+          }
+          return ret;
+          };
+      }(document.createElement)
+      */
+      document.addEventListener('DOMNodeInserted',function(ev){
+        if (ev.target.tagName.toLowerCase() === "iframe"){
+          console.log(window.currentScript + " created a " + ev.target.tagName + " pointing at " + ev.target.src);
+        }
+      },false);
+    </script>
+  </head>
+  <body>
+  <iframe id="derp2"></iframe>
+  <div id="target">
+    target text
+  </div>
+    <div class="dummy">
+      <script>
+    </script>
+  </div>
+  <div class="dummy2">
+    <script src="evil.js">
+    </script>
+    <script src="evil2.js">
+    </script>
+  </div>
+  </body>
+</html>
+
