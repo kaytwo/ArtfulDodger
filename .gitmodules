@@ -1,0 +1,3 @@
+[submodule "contrib/webdis"]
+	path = contrib/webdis
+	url = git@github.com:kaytwo/webdis.git
