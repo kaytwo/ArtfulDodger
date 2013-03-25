@@ -27,13 +27,14 @@ var heartbeat = 1,
 
         return page;
     },
-    process_result = function (a_status, a_url, thispage, redirs) {
+    process_result = function (a_status, a_url, thispage, redirs, sshot) {
         var now = new Date().getTime();
         queue.push(out_queue_name, {
             url: a_url,
             dom: thispage,
             redirs: redirs,
-            ts: now
+            ts: now,
+            sshot: sshot
         });
         // console.log("Rendered redirchain " + JSON.stringify(redirs) + " at " + now );
     },
@@ -63,8 +64,9 @@ var heartbeat = 1,
                     // give the page 1.2 seconds for any sneaky redirects
                     a_page.tocb = setTimeout(function () {
                           dom_content = a_page.content;
+                          dom_sshot = a_page.renderBase64('PNG');
                           redirs = a_page.redirchain.slice(0);
-                          process_result(status, item.url, dom_content, redirs);
+                          process_result(status, item.url, dom_content, redirs,dom_sshot);
                           a_page.close();
                           setTimeout(read_queue,25);
                           return;

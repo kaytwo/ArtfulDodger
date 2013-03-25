@@ -1,4 +1,5 @@
 import json
+from base64 import b64decode
 from hashlib import md5
 import redis
 import sys
@@ -18,5 +19,11 @@ while True:
     except:
         continue
     filekey = md5(val['url']).hexdigest()
+    if 'sshot' in val:
+      with open(outpath + '/domout-' + filekey + '.png','w') as f:
+        f.write(b64decode(val['sshot']))
+        del val['sshot']
+    # this is just example code, don't spam out the entire DOM
+    val['dom'] = val['dom'][:100]
     with open(outpath + '/domout-' + filekey,'w') as f:
-      f.write(res[1])
+      f.write(json.dumps(val))
