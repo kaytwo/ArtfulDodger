@@ -95,8 +95,18 @@ var heartbeat = 1,
         }, 5000);
     };
 
+var args = require('system').args;
+var hostname, portnum;
+if (args.length > 1)
+  hostname = args[1];
+else
+  hostname = "localhost";
+if (args.length > 2)
+  portnum = args[2];
+else
+  portnum = "7379";
 
-queue = new Resque("localhost", "7379", function (resque) {
+queue = new Resque(hostname, portnum, function (resque) {
   read_queue();
 });
 setInterval(function () {
