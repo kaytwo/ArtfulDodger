@@ -8,10 +8,10 @@ import time
 
 numsecs = float(3)
 r = redis.StrictRedis(host='localhost',port=6379,db=0)
-nownum =  r.get('resque:outputs')
+nownum =  r.get('resque:outputs') or 0
 while True:
   time.sleep(numsecs)
-  newnum = r.get('resque:outputs')
+  newnum = r.get('resque:outputs') or 0
   newreqs = (int(newnum) - int(nownum)) / numsecs
   print "%.2f requests/sec" % newreqs
   print "inqlen:",r.llen('resque:crawlqueue')
