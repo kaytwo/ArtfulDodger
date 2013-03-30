@@ -34,6 +34,9 @@ LIMITATIONS / BUGS
 
   * `Transfer-encoding: chunked` responses might be lost if not terminated
     properly
+  * The browser still looks very fake. For this to be more useful, it will
+    need to pass plugindetect.js looking like a real browser. This is
+    future work. Pull requests encouraged!
 
 current functionality
 =====================
