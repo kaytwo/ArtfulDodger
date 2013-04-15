@@ -27,14 +27,15 @@ var heartbeat = 1,
 
         return page;
     },
-    process_result = function (a_status, a_url, thispage, redirs, sshot) {
+    process_result = function (a_status, a_url, thispage, redirs, sshot,tag) {
         var now = new Date().getTime();
         queue.push(out_queue_name, {
             url: a_url,
             dom: thispage,
             redirs: redirs,
             ts: now,
-            sshot: sshot
+            sshot: sshot,
+            tag: tag
         });
         // console.log("Rendered redirchain " + JSON.stringify(redirs) + " at " + now );
     },
@@ -66,7 +67,7 @@ var heartbeat = 1,
                           dom_content = a_page.content;
                           dom_sshot = a_page.renderBase64('PNG');
                           redirs = a_page.redirchain.slice(0);
-                          process_result(status, item.url, dom_content, redirs,dom_sshot);
+                          process_result(status, item.url, dom_content, redirs,dom_sshot,item.tag);
                           a_page.close();
                           setTimeout(read_queue,25);
                           return;
