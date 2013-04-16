@@ -31,13 +31,13 @@ var heartbeat = 1,
         var now = new Date().getTime();
         queue.push(out_queue_name, {
             url: a_url,
+            status: a_status,
             dom: thispage,
             redirs: redirs,
             ts: now,
             sshot: sshot,
             tag: tag
         });
-        // console.log("Rendered redirchain " + JSON.stringify(redirs) + " at " + now );
     },
     read_queue = function () {
 
@@ -51,10 +51,19 @@ var heartbeat = 1,
             } else {
                 a_page = create_page();
                 a_page.redirchain = [];
+                a_page.failreason = 'no major error';
                 a_page.onResourceTimeout = function(req){
                 };
                 a_page.onResourceRequested = function(req){
                   heartbeat++;
+                };
+                a_page.onResourceReceived = function(resp){
+                };
+                a_page.onResourceError = function(resourceError) {
+                  // if the last navigated-to url load failed, keep track of why
+                  if (a_page.redirchain.slice(-1)[0] == resourceError.url){
+                    a_page.failreason = resourceError.errorString;
+                  }
                 };
                 a_page.onLoadFinished = function(status) {
                     if (a_page.tocb)
@@ -64,6 +73,9 @@ var heartbeat = 1,
                     
                     // give the page 1.2 seconds for any sneaky redirects
                     a_page.tocb = setTimeout(function () {
+                          if (status != 'success'){
+                            status = a_page.failreason;
+                          }
                           dom_content = a_page.content;
                           dom_sshot = a_page.renderBase64('PNG');
                           redirs = a_page.redirchain.slice(0);
@@ -114,7 +126,7 @@ setInterval(function () {
 
     // page hasn't successfully loaded in N seconds, die and be reborn
     if (lastheartbeat === heartbeat) {
-        console.log("exited due to lack of forward progress.");
+        console.log("exiting due to lack of forward progress.");
         phantom.exit();
     }
     lastheartbeat = heartbeat;
