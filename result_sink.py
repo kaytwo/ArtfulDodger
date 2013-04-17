@@ -10,9 +10,10 @@ from shutil import move
 
 '''super simple web crawl result consumer'''
 
-outpath = sys.argv[1] if len(sys.argv) == 2 else '/tmp/'
-tmppath = '/tmp/'
-r = redis.StrictRedis(host='localhost',port=6379,db=0)
+outpath = sys.argv[1] if len(sys.argv) >= 2 else '/tmp/'
+sample_sshot = True if len(sys.argv) >= 3 else False
+tmppath = '/mnt/tmp/'
+r = redis.StrictRedis(unix_socket_path='/var/run/redis.sock',db=0)
 waits = 0
 outputs = 0
 while True:
@@ -32,12 +33,12 @@ while True:
             continue
         filekey = md5(val['url']).hexdigest()
         if 'sshot' in val:
-          pngout_dir = outpath + '/sshots/' + filekey[:2] + '/'
-          system('mkdir -p %s' % pngout_dir)
-          now = val.get('ts',time.time() * 1000)
-          with open('%s/%s-%s.png' % (pngout_dir,filekey,now),'w') as pngfd:
-            pngfd.write(b64decode(val['sshot']))
-            del val['sshot']
+          if (not sample_sshot) or (sample_sshot and filekey.find('00') == 0):
+            pngout_dir = outpath + '/sshots/' + filekey[:2] + '/'
+            now = val.get('ts',time.time() * 1000)
+            with open('%s/%s-%s.png' % (pngout_dir,filekey,now),'w') as pngfd:
+              pngfd.write(b64decode(val['sshot']))
+          del val['sshot']
         # ck: i have NO IDEA why this line is here.
         val['dom'] = val['dom']
         f.write(json.dumps(val)+'\n')

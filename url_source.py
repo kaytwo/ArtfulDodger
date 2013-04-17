@@ -12,7 +12,7 @@ if len(sys.argv) != 2:
   print "first arg is list of newline-separated URLs to crawl"
   sys.exit()
 infile = sys.argv[1]
-r = redis.StrictRedis(host='10.105.1.41',port=6379,db=0)
+r = redis.StrictRedis(host='localhost',port=6379,db=0)
 urls_added = 0
 try:
   f = open(infile)
