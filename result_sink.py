@@ -6,12 +6,13 @@ from os import system
 import redis
 import sys
 import time
+from shutil import move
 
 '''super simple web crawl result consumer'''
 
 outpath = sys.argv[1] if len(sys.argv) == 2 else '/tmp/'
 tmppath = '/tmp/'
-r = redis.StrictRedis(host='10.105.1.41',port=6379,db=0)
+r = redis.StrictRedis(host='localhost',port=6379,db=0)
 waits = 0
 outputs = 0
 while True:
@@ -45,4 +46,4 @@ while True:
         waits += 1
       sys.stdout.write('\rwaits: %d\tresults: %d'%(waits,outputs))
       sys.stdout.flush()
-  os.rename(todayfile,permfile)
+  move(todayfile,permfile)
