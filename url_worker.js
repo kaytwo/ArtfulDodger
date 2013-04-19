@@ -53,15 +53,21 @@ var heartbeat = 1,
                 a_page.redirchain = [];
                 a_page.failreason = 'no major error';
                 a_page.onResourceTimeout = function(req){
+                  console.log("timeout:" + JSON.stringify(req));
+                  if (a_page.redirchain.slice(-1)[0] == req.url)
+                    a_page.failreason = "Resource timeout";
                 };
                 a_page.onResourceRequested = function(req){
                   heartbeat++;
                 };
                 a_page.onResourceReceived = function(resp){
+                  console.log("resource received:" + JSON.stringify(resp));
                 };
                 a_page.onResourceError = function(resourceError) {
+                  console.log("resource error:" + JSON.stringify(resourceError));
+
                   // if the last navigated-to url load failed, keep track of why
-                  if (a_page.redirchain.slice(-1)[0] == resourceError.url){
+                  if ((a_page.redirchain.slice(-1)[0] === resourceError.url) && (a_page.failreason === 'no major error')){
                     a_page.failreason = resourceError.errorString;
                   }
                 };
@@ -90,7 +96,6 @@ var heartbeat = 1,
                     a_page.redirchain.push(url);
                     if (a_page.tocb)
                       clearTimeout(a_page.tocb);
-
                   }
                 };
 
