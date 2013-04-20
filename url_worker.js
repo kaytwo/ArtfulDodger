@@ -10,6 +10,7 @@ var heartbeat = 1,
     out_queue_name = "resultqueue",
     in_queue_name  = "crawlqueue",
     queue,
+    a_page,
     create_page = function () {
 
         var page = webpage.create();
@@ -21,23 +22,11 @@ var heartbeat = 1,
         page.settings.loadImages = false;
         // most popular browser to wikimedia sites
         page.settings.userAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.60 Safari/537.17";
-        page.settings.resourceTimeout = 5*1000;
+        page.settings.resourceTimeout = 10*1000;
         page.onConsoleMessage = function(msg) {};
         page.onError = function(msg, trace) {};
 
         return page;
-    },
-    process_result = function (a_status, a_url, thispage, redirs, sshot,tag) {
-        var now = new Date().getTime();
-        queue.push(out_queue_name, {
-            url: a_url,
-            status: a_status,
-            dom: thispage,
-            redirs: redirs,
-            ts: now,
-            sshot: sshot,
-            tag: tag
-        });
     },
     read_queue = function () {
 
@@ -49,43 +38,47 @@ var heartbeat = 1,
                 setTimeout(read_queue,25);
                 return;
             } else {
+                heartbeat++;
                 a_page = create_page();
                 a_page.redirchain = [];
-                a_page.failreason = 'no major error';
+                a_page.redircodes = [];
+                a_page.failreason = 'unknown error';
                 a_page.onResourceTimeout = function(req){
-                  console.log("timeout:" + JSON.stringify(req));
                   if (a_page.redirchain.slice(-1)[0] == req.url)
                     a_page.failreason = "Resource timeout";
                 };
                 a_page.onResourceRequested = function(req){
-                  heartbeat++;
                 };
                 a_page.onResourceReceived = function(resp){
-                  console.log("resource received:" + JSON.stringify(resp));
+                  if(resp.url === a_page.redirchain.slice(-1)[0] && resp.stage === "start")
+                    a_page.redircodes.push(resp.status);
                 };
                 a_page.onResourceError = function(resourceError) {
-                  console.log("resource error:" + JSON.stringify(resourceError));
-
                   // if the last navigated-to url load failed, keep track of why
-                  if ((a_page.redirchain.slice(-1)[0] === resourceError.url) && (a_page.failreason === 'no major error')){
+                  if ((a_page.redirchain.slice(-1)[0] === resourceError.url) && (a_page.failreason === 'unknown error')){
                     a_page.failreason = resourceError.errorString;
                   }
                 };
                 a_page.onLoadFinished = function(status) {
-                    if (a_page.tocb)
-                      clearTimeout(a_page.tocb);
-                    // wiggle the mouse
-                    a_page.sendEvent('mousemove',200,200);
-                    
+                    if (item.tocb){
+                      clearTimeout(item.tocb);
+                      delete item.tocb;
+                    }
+                    // wiggle the mouse - sendEvent interrupts this thread of execution???
+                    setTimeout(function() {a_page.sendEvent('mousemove',200,200);},10);
                     // give the page 1.2 seconds for any sneaky redirects
-                    a_page.tocb = setTimeout(function () {
+                    item.tocb = setTimeout(function () {
                           if (status != 'success'){
                             status = a_page.failreason;
                           }
-                          dom_content = a_page.content;
-                          dom_sshot = a_page.renderBase64('PNG');
-                          redirs = a_page.redirchain.slice(0);
-                          process_result(status, item.url, dom_content, redirs,dom_sshot,item.tag);
+                          item.dom = a_page.content;
+                          item.sshot = a_page.renderBase64('PNG');
+                          item.redirs = a_page.redirchain.slice(0);
+                          item.status = status;
+                          item.redircodes = a_page.redircodes.slice(0);
+                          item.ts = new Date().getTime();
+                          queue.push(out_queue_name,item);
+                          
                           a_page.close();
                           setTimeout(read_queue,25);
                           return;
@@ -94,8 +87,8 @@ var heartbeat = 1,
                 a_page.onNavigationRequested = function(url, type, willNavigate, main) {
                   if (willNavigate && main){
                     a_page.redirchain.push(url);
-                    if (a_page.tocb)
-                      clearTimeout(a_page.tocb);
+                    if (item.tocb)
+                      clearTimeout(item.tocb);
                   }
                 };
 
