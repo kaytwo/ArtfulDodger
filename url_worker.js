@@ -22,7 +22,7 @@ var heartbeat = 1,
         page.settings.loadImages = false;
         // most popular browser to wikimedia sites
         page.settings.userAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.60 Safari/537.17";
-        page.settings.resourceTimeout = 10*1000;
+        page.settings.resourceTimeout = 7.5*1000;
         page.onConsoleMessage = function(msg) {};
         page.onError = function(msg, trace) {};
 
@@ -77,6 +77,7 @@ var heartbeat = 1,
                           item.status = status;
                           item.redircodes = a_page.redircodes.slice(0);
                           item.ts = new Date().getTime();
+                          delete item.tocb;
                           queue.push(out_queue_name,item);
                           
                           a_page.close();
@@ -86,6 +87,7 @@ var heartbeat = 1,
                 };
                 a_page.onNavigationRequested = function(url, type, willNavigate, main) {
                   if (willNavigate && main){
+                    heartbeat++;
                     a_page.redirchain.push(url);
                     if (item.tocb)
                       clearTimeout(item.tocb);
