@@ -19,7 +19,7 @@ var heartbeat = 1,
             width: 800,
             height: 600
         };
-        page.settings.loadImages = false;
+        // page.settings.loadImages = false;
         // most popular browser to wikimedia sites
         page.settings.userAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.60 Safari/537.17";
         page.settings.resourceTimeout = 7.5*1000;

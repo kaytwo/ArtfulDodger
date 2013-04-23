@@ -33,13 +33,11 @@ while True:
             continue
         filekey = md5(val['url']).hexdigest()
         if 'sshot' in val:
-          '''
           if (not sample_sshot) or (sample_sshot and filekey.find('00') == 0):
-            pngout_dir = outpath + '/sshots/' + filekey[:2] + '/'
+            pngout_dir = outpath + '/sshots'
             now = val.get('ts',time.time() * 1000)
             with open('%s/%s-%s.png' % (pngout_dir,filekey,now),'w') as pngfd:
               pngfd.write(b64decode(val['sshot']))
-          '''
           del val['sshot']
         # ck: i have NO IDEA why this line is here.
         val['dom'] = val['dom']
