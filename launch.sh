@@ -6,7 +6,7 @@ NUM_INSTANCES=${1:-25}
 SCRIPT_PATH=${2:-"/home/ckanich/workspace/ArtfulDodger/"}
 WEBDIS_HOST=${3:-"localhost"}
 WEBDIS_PORT=${4:-"7379"}
-PROXY="--proxy=127.0.0.1:3128"
+# PROXY="--proxy=127.0.0.1:3128"
 # IMAGES="--load-images=false"
 
 cd $SCRIPT_PATH
