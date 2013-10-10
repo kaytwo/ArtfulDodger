@@ -25,9 +25,11 @@ Webdis = (function() {
       };
       self.page.evaluate(jqueryconflictresolver);
       self.ready = true;
+      //console.log("here")
       return self.startup_callback(self.resque);
     };
     onAlert = function(message) {
+      //console.log("JO NERE")
       var callback, callbackid, jsonmsg, msg, rediscmd, webdismsg, webdisresp;
 
       if (!(message.substring(0, self.msgtoken.length) === self.msgtoken)) {
@@ -61,12 +63,13 @@ Webdis = (function() {
     this.page.onConsoleMessage = function(x) {
       return console.log(x);
     };
+
     this.page.open("http://" + this.host + ":" + this.port + "/lpush", onLoadFinished);
   }
 
   Webdis.prototype.execute = function(ajax, callback, rediscmd) {
     var evil, evilargs, storedid;
-
+    //console.log("IN EXECUTE")
     storedid = this.store_callback(callback);
     evilargs = {
       msgtoken: this.msgtoken,
@@ -76,12 +79,13 @@ Webdis = (function() {
     };
     evil = function(args) {
       var callbackid, msgtoken, supercallback;
-
+      //console.log("in evil")
       msgtoken = args.msgtoken;
       ajax_args = args.ajax;
       callbackid = args.callbackid;
       rediscmd = args.rediscmd;
       supercallback = function(webdis_response) {
+        //console.log("in super callback")
         var jsonified, payload;
 
         payload = {
@@ -90,23 +94,28 @@ Webdis = (function() {
           webdismsg: webdis_response
         };
         jsonified = JSON.stringify(payload);
+       //console.log(jsonified);
         if (callbackid !== void 0 && callbackid !== null) {
           return alert(msgtoken + jsonified);
         }
       };
+      //console.log("here")
       ajax_args.success = supercallback;
 
       return window.$.ajax(ajax_args);
     };
+    //console.log("GOING to rerutnr")
     return this.page.evaluate(evil, evilargs);
   };
 
   Webdis.prototype.construct_request = function(components) {
     var url;
-
-    url = {url:"http://" + this.host + ":" + this.port + "/" + components.slice(0,-1).map(encodeURIComponent).join("/"), type:"PUT"}
+    console.log("COMPONENTS length: " + components.length);
+    url = {url:"http://" + this.host + ":" + this.port + "/" + components.slice(0, -1).map(encodeURIComponent).join("/"), type:"PUT"};
+    console.log(url.url);
     if (components.length > 1)
       url.data = components[components.length-1];
+    console.log(JSON.stringify(url));
     return url;
   };
 
@@ -168,6 +177,23 @@ Webdis = (function() {
     return r = this.execute(url, callback, "RPOP");
   };
 
+  Webdis.prototype.get_value = function(key, field, callback) {
+    var cmd, r, url;
+
+    cmd = ["HGET", key, field];
+    url = this.construct_request(cmd);
+    return r = this.execute(url, callback);
+  };
+
+  Webdis.prototype.inc_value = function(key, field, increment) {
+    var cmd, r, url;
+
+    cmd = ["HINCRBY", key, field, increment];
+    url = this.construct_request(cmd);
+    console.log(JSON.stringify(url))
+    return r = this.execute(url);
+  };
+
   return Webdis;
 
 })();
@@ -192,6 +218,20 @@ Resque = (function() {
 
     key = "resque:" + queue;
     return this.webdis.pop(key, callback);
+  };
+
+  Resque.prototype.get_value = function(hashtable, field, callback) {
+    var key;
+
+    key = "resque:" + hashtable;
+    return this.webdis.get_value(key, field, callback);
+  };
+
+  Resque.prototype.inc_value = function(hashtable, field, increment) {
+    var key;
+
+    key = "resque:" + hashtable;
+    return this.webdis.inc_value(key, field, increment.toString());
   };
 
   return Resque;
