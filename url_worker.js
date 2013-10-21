@@ -13,26 +13,26 @@ var heartbeat = 1,
     redis,
     current_url,
     a_page,
-    total_timeout_time = 300, //CHANGED THIS TO SEE WHAT HAPPENS WHEN TIMEOUT. THE VALUE DOESN'T INCREMENT
+    is_timed_out,
+    total_timeout_time = 30000, //CHANGED THIS TO SEE WHAT HAPPENS WHEN TIMEOUT. THE VALUE DOESN'T INCREMENT
     max_retries = 3,
     start_time,
     current_time,
     time_left,
     headers,
     browser_array = JSON.parse(fs.open('.browserProfiles.json', 'r').read()),
-    thisBrowser,
+    this_browser = browser_array[Math.floor(Math.random() * browser_array.length)],
     create_page = function () {
         start_time = new Date().getTime();
-        thisBrowser = browser_array[Math.floor(Math.random() * browser_array.length)];
         var page = webpage.create();
 
         page.viewportSize = {
-            width: thisBrowser.screen.width,
-            height: thisBrowser.screen.height
+            width: this_browser.screen.width,
+            height: this_browser.screen.height
         };
         // page.settings.loadImages = false;
         // most popular browser to wikimedia sites
-        page.settings.userAgent = thisBrowser.navigator.userAgent;
+        page.settings.userAgent = this_browser.navigator.userAgent;
         time_left = total_timeout_time;
         //page.settings.resourceTimeout = 7.5 * 1000;
         page.settings.resourceTimeout = time_left;
@@ -41,9 +41,9 @@ var heartbeat = 1,
         page.onError = function (msg, trace) {};
         
         headers = {
-            'Accept': thisBrowser.acceptHeaders['accept'],
-            'Accept-Language': thisBrowser.acceptHeaders['accept-language'],
-            'Accept-Encoding': thisBrowser.acceptHeaders['accept-encoding'],
+            'Accept': this_browser.acceptHeaders['accept'],
+            'Accept-Language': this_browser.acceptHeaders['accept-language'],
+            'Accept-Encoding': this_browser.acceptHeaders['accept-encoding'],
             'Connection': 'Keep-Alive'
         };
         //Change this
@@ -52,9 +52,9 @@ var heartbeat = 1,
         page.customHeaders = headers;
 
         headers = {
-            'Accept': thisBrowser.acceptHeaders['accept'],
-            'Accept-Language': thisBrowser.acceptHeaders['accept-language'],
-            'Accept-Encoding': thisBrowser.acceptHeaders['accept-encoding'],
+            'Accept': this_browser.acceptHeaders['accept'],
+            'Accept-Language': this_browser.acceptHeaders['accept-language'],
+            'Accept-Encoding': this_browser.acceptHeaders['accept-encoding'],
             'Connection': 'Keep-Alive'
         };
 
@@ -66,6 +66,7 @@ var heartbeat = 1,
         var metadata = new Object();
 
         var a_page = create_page();
+        is_timed_out = false;
         a_page.origURL = url;
         a_page.redirChain = [];
         a_page.allResourceURLs = [];
@@ -74,7 +75,7 @@ var heartbeat = 1,
         a_page.failreason = 'unknown error';
 
         a_page.onInitialized = function () {
-            page.evaluate(function (thisBrowser) {
+            page.evaluate(function (this_browser) {
                 console.log("initialized");
                 (function () {
                     var plugins = navigator.plugins;
@@ -96,18 +97,21 @@ var heartbeat = 1,
                         screen = browseObject.screen;
                     }
                 })();
-            }, thisBrowser);
+            }, this_browser);
         };
 
         a_page.onResourceTimeout = function (req) {
             console.log("RESOURCE timeout");
             if (a_page.redirChain.slice(-1)[0]["url"] === req.url) {
+		is_timed_out = true;
+	    }
+            /*if (a_page.redirChain.slice(-1)[0]["url"] === req.url) {
                 //a_page.failreason = "RESOURCE TIMEOUT\nRESOURCETIMEOUT";
                 redis.get_value(retry_table_name, a_page.redirChain.slice(0)[0]["url"], function(value) {
                     if (value["HGET"] === null || parseInt(value["HGET"] < max_retries)) {
                         redis.push(in_queue_name, current_url);
                         redis.inc_value(retry_table_name, a_page.redirChain.slice(0)[0]["url"], 1);
-                        console.log(a_page.redirChain.slice(0)[0]["url"])
+                        console.log("reading this url: " + a_page.redirChain.slice(0)[0]["url"])
                         //a_page.close();
                         setTimeout(read_queue, 25);
                         //redis.inc_value(retry_table_name, a_page.redirChain.slice(0)[0]["url"], 1);
@@ -115,10 +119,10 @@ var heartbeat = 1,
                         a_page.failreason = "Page failed to load after multiple retries";
                     }
                 });
-            }
+            }*/
         };
 
-        a_page.onResourceRequested = function (req) {console.log(a_page.settings.resourceTimeout);/*console.log("resource requested: " + req.url)*/};
+        a_page.onResourceRequested = function (req) {/*console.log(a_page.settings.resourceTimeout);*//*console.log("resource requested: " + req.url)*/};
 
         a_page.onResourceReceived = function (resp) {
 
@@ -198,6 +202,15 @@ var heartbeat = 1,
 
             // give the page 1.2 seconds for any sneaky redirects
             metadata.tocb = setTimeout(function () {
+		metadata.browser_ID = this_browser.ID;
+                if (is_timed_out) {
+                    console.log("Didn't write out!!");
+		    a_page.close();
+		    setTimeout(read_queue, 25);
+		    return;
+
+		} else {
+
                 console.log("in tocb!!")
                 if (status !== 'success') {
                     status = a_page.failreason;
@@ -234,7 +247,7 @@ var heartbeat = 1,
                 //console.log(JSON.stringify(a_page.allResourceURLs));
 
                 //console.log(JSON.stringify(a_page.allResourcesAndContent));
-                console.log(JSON.stringify(metadata.redirs));
+                //console.log(JSON.stringify(metadata.redirs));
                 /*
                 out = []
                 for (var i in a_page.allResourcesAndStatus) {
@@ -244,12 +257,12 @@ var heartbeat = 1,
                 */
 
                 delete metadata.tocb;
-
+		console.log(JSON.stringify(metadata));
                 redis.push(out_queue_name, metadata);
                 a_page.close();
                 setTimeout(read_queue, 25);
                 return;
-
+                }
             }, 1200);
         };
 
@@ -269,7 +282,7 @@ var heartbeat = 1,
                 datum["url"] = url;
 
                 a_page.redirChain.push(datum)
-                console.log(datum)
+               // console.log(datum)
 
                 if (metadata.tocb) {
                     clearTimeout(metadata.tocb);
@@ -280,7 +293,6 @@ var heartbeat = 1,
         a_page.open(url);
         //a_page.open(url, function (status) {});
     },
-
 
     read_queue = function () {
         //console.log("going to read queue");
@@ -304,10 +316,10 @@ var heartbeat = 1,
     queue_empty = function () {
 
         heartbeat++;
-        console.log("exhausted queue. sleeping for it to refill");
-        setTimeout(function () {
+        //console.log("exhausted queue. sleeping for it to refill");
+        /*setTimeout(function () {
             read_queue();
-        }, 5000);
+        }, total_timeout_time+5000);*/
     };
 
 var args = require('system').args;

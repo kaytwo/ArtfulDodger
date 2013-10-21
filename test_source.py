@@ -10,7 +10,8 @@ import time
 infile = 'top-1m.csv.bz2'
 numurls = int(sys.argv[1]) if len(sys.argv) > 1 else 100
 r = redis.StrictRedis(host='localhost',port=6379,db=0)
-urls_added = 0
+r.lpush('resque:crawlqueue', json.dumps({'url':'http://www.youtube.com'}))
+'''urls_added = 0
 try:
   f = bz2.BZ2File(infile)
   for line in f.readlines():
@@ -23,4 +24,4 @@ try:
         print "inserted %d urls" % urls_added
         sys.exit()
 except:
-  pass
+  pass'''

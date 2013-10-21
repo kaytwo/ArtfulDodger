@@ -10,13 +10,15 @@ from shutil import move
 
 '''super simple web crawl result consumer'''
 
-outpath = sys.argv[1] if len(sys.argv) >= 2 else 'crawlresults'
+outpath = sys.argv[1] if len(sys.argv) >= 2 else '/tmp/'
 sample_sshot = True if len(sys.argv) >= 3 else False
-tmppath = 'crawlresults'
-r = redis.StrictRedis(host='localhost',port=6379,db=0)
+tmppath = '/tmp/crawlresults'
+r = redis.StrictRedis(unix_socket_path='/var/run/redis.sock',db=0)
 waits = 0
 outputs = 0
-while True:
+with open("~/tmp/crawlresults/hey.json", 'a') as f:
+    print 'hey'
+'''while True:
   today = time.strftime('%Y%m%d%H')
   todayfn = '/doms.' + today + '.json'
   todayfile = tmppath + todayfn
@@ -48,4 +50,4 @@ while True:
         waits += 1
       sys.stdout.write('\rwaits: %d\tresults: %d'%(waits,outputs))
       sys.stdout.flush()
-  move(todayfile,permfile)
+  move(todayfile,permfile)'''

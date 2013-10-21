@@ -115,7 +115,7 @@ Webdis = (function() {
     console.log(url.url);
     if (components.length > 1)
       url.data = components[components.length-1];
-    console.log(JSON.stringify(url));
+    //console.log(JSON.stringify(url));
     return url;
   };
 
