@@ -1,6 +1,9 @@
 // pull URLs to load from crawlqueue, load them,
 // then store the resulting DOM and redirchain to resultqueue
+
 phantom.injectJs("resque.js");
+//For URL parsing
+phantom.injectJs("jsuri-1.1.1.min.js");
 
 var heartbeat = 1,
     lastheartbeat = 0,
@@ -12,6 +15,7 @@ var heartbeat = 1,
     retry_table_name = "retriestable",
     redis,
     current_url,
+    current_uri,
     a_page,
     is_timed_out,
     total_timeout_time = 30000, //CHANGED THIS TO SEE WHAT HAPPENS WHEN TIMEOUT. THE VALUE DOESN'T INCREMENT
@@ -20,48 +24,48 @@ var heartbeat = 1,
     current_time,
     time_left,
     headers,
-    browser_array = JSON.parse(fs.open('.browserProfiles.json', 'r').read()),
-    this_browser = browser_array[Math.floor(Math.random() * browser_array.length)],
+    browsers = JSON.parse(fs.open('.browserProfiles.json', 'r').read()),
+    this_browser,
     create_page = function () {
         start_time = new Date().getTime();
         var page = webpage.create();
-
-        page.viewportSize = {
-            width: this_browser.screen.width,
-            height: this_browser.screen.height
-        };
         // page.settings.loadImages = false;
         // most popular browser to wikimedia sites
         page.settings.userAgent = this_browser.navigator.userAgent;
+
+        //Resource timeout starts as the total timeout time.
         time_left = total_timeout_time;
-        //page.settings.resourceTimeout = 7.5 * 1000;
         page.settings.resourceTimeout = time_left;
-        //console.log("RESOURCE TIMEOUT: " +page.settings.resourceTimeout);
         page.onConsoleMessage = function (msg) { console.log(msg); };
         page.onError = function (msg, trace) {};
         
         headers = {
             'Accept': this_browser.acceptHeaders['accept'],
             'Accept-Language': this_browser.acceptHeaders['accept-language'],
-            'Accept-Encoding': this_browser.acceptHeaders['accept-encoding'],
             'Connection': 'Keep-Alive'
         };
-        //Change this
-        //headers['Referer'] = ref;
+        
+        //Remove 'gzip' from the Accept-Encoding header
+	var accept_encoding = this_browser.acceptHeaders['accept-encoding'].split(",");
+        accept_encoding.splice(this_browser.acceptHeaders['accept-encoding'].indexOf("gzip"), 1);
+        headers['Accept-Encoding'] = accept_encoding.join();
 
+	//sruti: not sure why we need to have a referer at initial request
+        //headers['Referer'] = ref;
+        
         page.customHeaders = headers;
 
         headers = {
             'Accept': this_browser.acceptHeaders['accept'],
             'Accept-Language': this_browser.acceptHeaders['accept-language'],
-            'Accept-Encoding': this_browser.acceptHeaders['accept-encoding'],
             'Connection': 'Keep-Alive'
         };
+        headers['Accept-Encoding'] = accept_encoding.join();
 
         return page;
     },
     load_page = function (url) {
-	    //console.log(url);
+	console.log("Crawling: " + url);
         heartbeat++;
         var metadata = new Object();
 
@@ -70,21 +74,22 @@ var heartbeat = 1,
         a_page.origURL = url;
         a_page.redirChain = [];
         a_page.allResourceURLs = [];
-        a_page.allResourcesAndStatus = new Array();
-        a_page.allResourcesAndContent = new Array();
+        a_page.allResourcesAndStatus = new Object();
+        a_page.allResourcesAndContent = new Object();
         a_page.failreason = 'unknown error';
 
         a_page.onInitialized = function () {
             page.evaluate(function (this_browser) {
-                console.log("initialized");
                 (function () {
+
+                    //Make phantom browser imitate selected browser persona
                     var plugins = navigator.plugins;
                     var mimeTypes = navigator.mimeTypes;
                     var geolocation = navigator.geolocation;
                     var webkitPersistentStorage = navigator.webkitPersistentStorage;
                     var webkitTemporaryStorage = navigator.webkitTemporaryStorage;
                     var __proto__ = navigator.__proto__;
-                    navigator = browseObject.navigator;
+                    navigator = this_browser.navigator;
                     navigator.geolocation = geolocation;
                     navigator.webkitPersistentStorage = webkitPersistentStorage;
                     navigator.webkitTemporaryStorage = webkitTemporaryStorage;
@@ -94,8 +99,12 @@ var heartbeat = 1,
                     navigator.mimeTypes.item = mimeTypes.item;
                     navigator.mimeTypes.namedItem = mimeTypes.namedItem;
                     if (Object.keys(screen).length > 0) {
-                        screen = browseObject.screen;
+                        screen = this_browser.screen;
                     }
+                    a_page.viewportSize = {
+            	        width: screen.width,
+                        height: this_browser.screen.height
+                    };
                 })();
             }, this_browser);
         };
@@ -122,16 +131,25 @@ var heartbeat = 1,
             }*/
         };
 
-        a_page.onResourceRequested = function (req) {/*console.log(a_page.settings.resourceTimeout);*//*console.log("resource requested: " + req.url)*/};
+        a_page.onResourceRequested = function (req) {
+	    //console.log("Resource requested: " + req.url);
+        };
 
         a_page.onResourceReceived = function (resp) {
-
-            /*redis.inc_value(retry_table_name, url, 1);
-            redis.get_value(retry_table_name, url, function(value) {
-                //console.log("HASHTABLE VALUE: " + JSON.stringify(value));
-            });*/
-            //console.log("resource received: " + resp.url);
-            //console.log("resource received");
+            //console.log("Resource Received!");
+	    /*var this_url = new Uri(resp.url);
+            var this_host = get_host(this_url.host()), current_host = get_host(current_uri.host());
+            function get_host(f_host) {
+		if (f_host.search("www.") === -1)
+                    return f_host;
+                else
+                    return f_host.substr(4);
+            }
+            console.log("this url: " + this_host);
+            console.log("current url: " + current_host);
+            if (this_host !== current_host) {
+		console.log("Resource requested in different domain");
+            }*/
             a_page.allResourceURLs.push(resp.url);
 
             // First, update the page content if needed. Note. This is the content of the PARENT OBJECT PAGE, NOT THE RESPONSE
@@ -140,7 +158,7 @@ var heartbeat = 1,
             if (page_url === "about:blank") {
                 page_url = a_page.origURL;
             }
-
+            //console.log("page url: " + page_url);
             // We store all possible decodings, because webservers suck
 
             // Note: This never gets called on the final link in the chain. Have to handle that in onLoadFinished.            
@@ -149,6 +167,7 @@ var heartbeat = 1,
             a_page.allResourcesAndContent[unescape(decodeURI(page_url))] = a_page.content;
             a_page.allResourcesAndContent[unescape(page_url)] = a_page.content;
 
+            //console.log(JSON.stringify(a_page.allResourcesAndContent));
             // Now, update this URL's status. 
             a_page.allResourcesAndStatus[resp.url] = resp.status;
             a_page.allResourcesAndStatus[decodeURI(resp.url)] = resp.status;
@@ -173,13 +192,9 @@ var heartbeat = 1,
             if (!resp.redirectURL) {
                 a_page.customHeaders = headers;
             }
-
-            //console.log(JSON.stringify(resp));
-
         };
 
         a_page.onResourceError = function (resourceError) {
-            //console.log("resource error");
             // if the last navigated-to url load failed, keep track of why
             if ((a_page.redirChain.slice(-1)[0]["url"] === resourceError.url) && (a_page.failreason === 'unknown error')) {
                 a_page.failreason = resourceError.errorString;
@@ -190,7 +205,6 @@ var heartbeat = 1,
 
             console.log("load finished");
             if (metadata.tocb) {
-                //console.log("in this url");
                 clearTimeout(metadata.tocb);
                 delete metadata.tocb;
             }
@@ -202,7 +216,7 @@ var heartbeat = 1,
 
             // give the page 1.2 seconds for any sneaky redirects
             metadata.tocb = setTimeout(function () {
-		metadata.browser_ID = this_browser.ID;
+		i//metadata.browser_ID = this_browser.ID;
                 if (is_timed_out) {
                     console.log("Didn't write out!!");
 		    a_page.close();
@@ -233,31 +247,19 @@ var heartbeat = 1,
                     if (!a_page.redirChain[i]["content"] && a_page.allResourcesAndContent[a_page.redirChain[i]["url"]]) {
                         a_page.redirChain[i]["content"] = a_page.allResourcesAndContent[a_page.redirChain[i]["url"]];
                     }
-
-                    //out = [datum["ts"], datum["url"], datum["status"], datum["content"]]
-                    //console.log(JSON.stringify(out));
                 }
 
                 metadata.url = page_url;
+		metadata.browser_ID = this_browser.ID;
                 metadata.dom = a_page.content;
                 metadata.sshot = a_page.renderBase64('PNG');
                 metadata.redirs = a_page.redirChain.slice(0);
                 metadata.status = status;
                 metadata.ts = new Date().getTime();
-                //console.log(JSON.stringify(a_page.allResourceURLs));
-
-                //console.log(JSON.stringify(a_page.allResourcesAndContent));
-                //console.log(JSON.stringify(metadata.redirs));
-                /*
-                out = []
-                for (var i in a_page.allResourcesAndStatus) {
-                    out.push([i, a_page.allResourcesAndStatus[i]])
-                }
-                console.log(JSON.stringify(out));
-                */
-
+		//metadata.iframeDoms = metadata.dom.match("/<iframe.iframe>/g");
+                //console.log(JSON.stringify(metadata.iframeDoms));
                 delete metadata.tocb;
-		console.log(JSON.stringify(metadata));
+		//console.log(JSON.stringify(metadata));
                 redis.push(out_queue_name, metadata);
                 a_page.close();
                 setTimeout(read_queue, 25);
@@ -267,23 +269,18 @@ var heartbeat = 1,
         };
 
         a_page.onNavigationRequested = function (url, type, willNavigate, main) {
-            //console.log("navigation requested");
             if (willNavigate && main) {
                 current_time = new Date().getTime();
 
                 time_left = current_time - start_time;
-                //console.log("TIME LEFT: " + start_time + " " + current_time)
                 a_page.settings.resourceTimeout = total_timeout_time - time_left;
                 if (a_page.settings.resourceTimeout < 0)
                     a_page.settings.resourceTimeout = 0;
-                //console.log(a_page.settings.resourceTimeout);
                 datum = new Object();
                 datum["ts"] = new Date().getTime();
                 datum["url"] = url;
 
                 a_page.redirChain.push(datum)
-               // console.log(datum)
-
                 if (metadata.tocb) {
                     clearTimeout(metadata.tocb);
                 }
@@ -291,12 +288,9 @@ var heartbeat = 1,
         };
 
         a_page.open(url);
-        //a_page.open(url, function (status) {});
     },
 
     read_queue = function () {
-        //console.log("going to read queue");
-        //console.log(in_queue_name);
         redis.pop(in_queue_name, function (item) {
             if (!item) {
                 //console.log("!item");
@@ -307,8 +301,9 @@ var heartbeat = 1,
                 setTimeout(read_queue, 25);
                 return;
             } else {
-                console.log("going to load page");
+                //console.log("going to load page");
                 current_url = item;
+                current_uri = new Uri(current_url.url);
                 load_page(item.url);
             }
         });
@@ -316,6 +311,7 @@ var heartbeat = 1,
     queue_empty = function () {
 
         heartbeat++;
+        //sruti: how would the queue refill?
         //console.log("exhausted queue. sleeping for it to refill");
         /*setTimeout(function () {
             read_queue();
@@ -325,11 +321,15 @@ var heartbeat = 1,
 var args = require('system').args;
 var hostname, portnum;
 if (args.length > 1)
-    hostname = args[1];
+    this_browser = browsers[args[1]];
+else
+    this_browser = browsers[Object.keys(browsers)[Math.floor(Math.random() * Object.keys(browsers).length)]];
+if (args.length > 2)
+    hostname = args[2]
 else
     hostname = "localhost";
-if (args.length > 2)
-    portnum = args[2];
+if (args.length > 3)
+    portnum = args[3];
 else
     portnum = "7379";
 
