@@ -2,8 +2,6 @@
 // then store the resulting DOM and redirchain to resultqueue
 
 phantom.injectJs("resque.js");
-//For URL parsing
-phantom.injectJs("jsuri-1.1.1.min.js");
 
 var heartbeat = 1,
     lastheartbeat = 0,
@@ -15,10 +13,9 @@ var heartbeat = 1,
     retry_table_name = "retriestable",
     redis,
     current_url,
-    current_uri,
     a_page,
     is_timed_out,
-    total_timeout_time = 30000, //CHANGED THIS TO SEE WHAT HAPPENS WHEN TIMEOUT. THE VALUE DOESN'T INCREMENT
+    total_timeout_time = 500, //CHANGED THIS TO SEE WHAT HAPPENS WHEN TIMEOUT. THE VALUE DOESN'T INCREMENT
     max_retries = 3,
     start_time,
     current_time,
@@ -110,25 +107,10 @@ var heartbeat = 1,
         };
 
         a_page.onResourceTimeout = function (req) {
-            console.log("RESOURCE timeout");
-            if (a_page.redirChain.slice(-1)[0]["url"] === req.url) {
+            //console.log("Resource timeout!");
+            if (a_page.redirChain.slice(-1)[0]["url"] === req.url ||  a_page.origURL === req.url) {
 		is_timed_out = true;
 	    }
-            /*if (a_page.redirChain.slice(-1)[0]["url"] === req.url) {
-                //a_page.failreason = "RESOURCE TIMEOUT\nRESOURCETIMEOUT";
-                redis.get_value(retry_table_name, a_page.redirChain.slice(0)[0]["url"], function(value) {
-                    if (value["HGET"] === null || parseInt(value["HGET"] < max_retries)) {
-                        redis.push(in_queue_name, current_url);
-                        redis.inc_value(retry_table_name, a_page.redirChain.slice(0)[0]["url"], 1);
-                        console.log("reading this url: " + a_page.redirChain.slice(0)[0]["url"])
-                        //a_page.close();
-                        setTimeout(read_queue, 25);
-                        //redis.inc_value(retry_table_name, a_page.redirChain.slice(0)[0]["url"], 1);
-                    } else {
-                        a_page.failreason = "Page failed to load after multiple retries";
-                    }
-                });
-            }*/
         };
 
         a_page.onResourceRequested = function (req) {
@@ -136,20 +118,6 @@ var heartbeat = 1,
         };
 
         a_page.onResourceReceived = function (resp) {
-            //console.log("Resource Received!");
-	    /*var this_url = new Uri(resp.url);
-            var this_host = get_host(this_url.host()), current_host = get_host(current_uri.host());
-            function get_host(f_host) {
-		if (f_host.search("www.") === -1)
-                    return f_host;
-                else
-                    return f_host.substr(4);
-            }
-            console.log("this url: " + this_host);
-            console.log("current url: " + current_host);
-            if (this_host !== current_host) {
-		console.log("Resource requested in different domain");
-            }*/
             a_page.allResourceURLs.push(resp.url);
 
             // First, update the page content if needed. Note. This is the content of the PARENT OBJECT PAGE, NOT THE RESPONSE
@@ -158,7 +126,6 @@ var heartbeat = 1,
             if (page_url === "about:blank") {
                 page_url = a_page.origURL;
             }
-            //console.log("page url: " + page_url);
             // We store all possible decodings, because webservers suck
 
             // Note: This never gets called on the final link in the chain. Have to handle that in onLoadFinished.            
@@ -167,7 +134,6 @@ var heartbeat = 1,
             a_page.allResourcesAndContent[unescape(decodeURI(page_url))] = a_page.content;
             a_page.allResourcesAndContent[unescape(page_url)] = a_page.content;
 
-            //console.log(JSON.stringify(a_page.allResourcesAndContent));
             // Now, update this URL's status. 
             a_page.allResourcesAndStatus[resp.url] = resp.status;
             a_page.allResourcesAndStatus[decodeURI(resp.url)] = resp.status;
@@ -203,7 +169,7 @@ var heartbeat = 1,
 
         a_page.onLoadFinished = function (status) {
 
-            console.log("load finished");
+            //console.log("load finished");
             if (metadata.tocb) {
                 clearTimeout(metadata.tocb);
                 delete metadata.tocb;
@@ -216,54 +182,66 @@ var heartbeat = 1,
 
             // give the page 1.2 seconds for any sneaky redirects
             metadata.tocb = setTimeout(function () {
-		i//metadata.browser_ID = this_browser.ID;
                 if (is_timed_out) {
-                    console.log("Didn't write out!!");
+                    redis.get_value(retry_table_name, a_page.origURL, function(result) {
+                        var retries = parseInt(result["HGET"]);
+                        if (retries !== null && retries === max_retries) {
+                            metadata.url = page_url;
+			    metadata.browser_ID = this_browser.ID;
+                            metadata.dom = a_page.content;
+			    metadata.status = "Page failed to load fully in " + total_timeout_time + " ms";
+                            metadata.ts = new Date().getTime();
+                            delete metadata.tocb;
+                            console.log("Writing to result queue (timed out object)...");
+                            redis.push(out_queue_name, metadata);
+			    //a_page.close();
+                            setTimeout(read_queue, 25);
+			    return;
+                        } else {
+			    redis.inc_value(retry_table_name, a_page.origURL, 1);
+			    redis.push(in_queue_name, current_url);
+                            //a_page.close();
+                            setTimeout(read_queue, 25);
+                            return;
+                        }
+                    });     
+		} else {
+
+		    if (status !== 'success') {
+			status = a_page.failreason;
+		    }
+		    // Cleanup poor behavior on onResourceRecieved
+		    page_url = a_page.url
+		    if (page_url === "about:blank") {
+		        page_url = a_page.origURL;
+		    }
+		    a_page.allResourcesAndContent[page_url] = a_page.content;
+			
+		    for (var i in a_page.redirChain) {
+
+			if (!a_page.redirChain[i]["status"] && a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]]) {
+			    a_page.redirChain[i]["status"] = a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]];
+			}
+
+			if (!a_page.redirChain[i]["content"] && a_page.allResourcesAndContent[a_page.redirChain[i]["url"]]) {
+			    a_page.redirChain[i]["content"] = a_page.allResourcesAndContent[a_page.redirChain[i]["url"]];
+			}
+		    }
+
+		    metadata.url = page_url;
+	            metadata.browser_ID = this_browser.ID;
+		    metadata.dom = a_page.content;
+		    metadata.sshot = a_page.renderBase64('PNG');
+		    metadata.redirs = a_page.redirChain.slice(0);
+		    metadata.status = status;
+		    metadata.ts = new Date().getTime();
+		    metadata.iframeDoms = metadata.dom.toString().match(/<iframe.*iframe>/m);
+		    delete metadata.tocb;
+		    console.log("Writing to result queue...");
+		    redis.push(out_queue_name, metadata);
 		    a_page.close();
 		    setTimeout(read_queue, 25);
 		    return;
-
-		} else {
-
-                console.log("in tocb!!")
-                if (status !== 'success') {
-                    status = a_page.failreason;
-                }
-
-                // Cleanup poor behavior on onResourceRecieved
-                page_url = a_page.url
-                if (page_url === "about:blank") {
-                    page_url = a_page.origURL;
-                }
-
-                a_page.allResourcesAndContent[page_url] = a_page.content;
-
-                for (var i in a_page.redirChain) {
-
-                    if (!a_page.redirChain[i]["status"] && a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]]) {
-                        a_page.redirChain[i]["status"] = a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]];
-                    }
-
-                    if (!a_page.redirChain[i]["content"] && a_page.allResourcesAndContent[a_page.redirChain[i]["url"]]) {
-                        a_page.redirChain[i]["content"] = a_page.allResourcesAndContent[a_page.redirChain[i]["url"]];
-                    }
-                }
-
-                metadata.url = page_url;
-		metadata.browser_ID = this_browser.ID;
-                metadata.dom = a_page.content;
-                metadata.sshot = a_page.renderBase64('PNG');
-                metadata.redirs = a_page.redirChain.slice(0);
-                metadata.status = status;
-                metadata.ts = new Date().getTime();
-		//metadata.iframeDoms = metadata.dom.match("/<iframe.iframe>/g");
-                //console.log(JSON.stringify(metadata.iframeDoms));
-                delete metadata.tocb;
-		//console.log(JSON.stringify(metadata));
-                redis.push(out_queue_name, metadata);
-                a_page.close();
-                setTimeout(read_queue, 25);
-                return;
                 }
             }, 1200);
         };
@@ -286,33 +264,26 @@ var heartbeat = 1,
                 }
             }
         };
-
         a_page.open(url);
     },
-
     read_queue = function () {
         redis.pop(in_queue_name, function (item) {
             if (!item) {
-                //console.log("!item");
                 setTimeout(queue_empty, 25);
                 return;
             } else if (!item.url) {
-                //console.log("!item.url");
                 setTimeout(read_queue, 25);
                 return;
             } else {
-                //console.log("going to load page");
                 current_url = item;
-                current_uri = new Uri(current_url.url);
                 load_page(item.url);
             }
         });
     },
     queue_empty = function () {
-
         heartbeat++;
         //sruti: how would the queue refill?
-        //console.log("exhausted queue. sleeping for it to refill");
+        //consolie.log("exhausted queue. sleeping for it to refill");
         /*setTimeout(function () {
             read_queue();
         }, total_timeout_time+5000);*/

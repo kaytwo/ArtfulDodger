@@ -103,7 +103,6 @@ Webdis = (function() {
   Webdis.prototype.construct_request = function(components) {
     var url;
     url = {url:"http://" + this.host + ":" + this.port + "/" + components.slice(0, -1).map(encodeURIComponent).join("/"), type:"PUT"};
-    //console.log(url.url);
     if (components.length > 1)
       url.data = components[components.length-1];
     return url;
@@ -180,7 +179,6 @@ Webdis = (function() {
 
     cmd = ["HINCRBY", key, field, increment];
     url = this.construct_request(cmd);
-    //console.log(JSON.stringify(url))
     return r = this.execute(url);
   };
 
