@@ -15,13 +15,13 @@ var heartbeat = 1,
     current_url,
     a_page,
     is_timed_out,
-    total_timeout_time = 500, //CHANGED THIS TO SEE WHAT HAPPENS WHEN TIMEOUT. THE VALUE DOESN'T INCREMENT
+    total_timeout_time = 30000,
     max_retries = 3,
     start_time,
     current_time,
     time_left,
     headers,
-    browsers = JSON.parse(fs.open('.browserProfiles.json', 'r').read()),
+    browsers = JSON.parse(fs.open('.browser_profiles.json', 'r').read()),
     this_browser,
     create_page = function () {
         start_time = new Date().getTime();
@@ -42,7 +42,7 @@ var heartbeat = 1,
             'Connection': 'Keep-Alive'
         };
         
-        //Remove 'gzip' from the Accept-Encoding header
+        //Remove 'gzip' from the Accept-Encoding header, phantomjs is intolerant
 	var accept_encoding = this_browser.acceptHeaders['accept-encoding'].split(",");
         accept_encoding.splice(this_browser.acceptHeaders['accept-encoding'].indexOf("gzip"), 1);
         headers['Accept-Encoding'] = accept_encoding.join();
@@ -191,6 +191,7 @@ var heartbeat = 1,
                             metadata.dom = a_page.content;
 			    metadata.status = "Page failed to load fully in " + total_timeout_time + " ms";
                             metadata.ts = new Date().getTime();
+                            metadata.allResourceURLs = a_page.allResourceURLs;
                             delete metadata.tocb;
                             console.log("Writing to result queue (timed out object)...");
                             redis.push(out_queue_name, metadata);
@@ -236,6 +237,7 @@ var heartbeat = 1,
 		    metadata.status = status;
 		    metadata.ts = new Date().getTime();
 		    metadata.iframeDoms = metadata.dom.toString().match(/<iframe.*iframe>/m);
+		    metadata.allResourceURLs = a_page.allResourceURLs;
 		    delete metadata.tocb;
 		    console.log("Writing to result queue...");
 		    redis.push(out_queue_name, metadata);
