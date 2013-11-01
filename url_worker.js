@@ -107,9 +107,10 @@ var heartbeat = 1,
         };
 
         a_page.onResourceTimeout = function (req) {
-            //console.log("Resource timeout!");
+            console.log("Resource timeout!");
             if (a_page.redirChain.slice(-1)[0]["url"] === req.url ||  a_page.origURL === req.url) {
 		is_timed_out = true;
+                console.log("RESOURCE TIMEOUT");
 	    }
         };
 
@@ -228,7 +229,6 @@ var heartbeat = 1,
 			    a_page.redirChain[i]["content"] = a_page.allResourcesAndContent[a_page.redirChain[i]["url"]];
 			}
 		    }
-
 		    metadata.url = page_url;
 	            metadata.browser_ID = this_browser.ID;
 		    metadata.dom = a_page.content;
@@ -236,7 +236,16 @@ var heartbeat = 1,
 		    metadata.redirs = a_page.redirChain.slice(0);
 		    metadata.status = status;
 		    metadata.ts = new Date().getTime();
-		    metadata.iframeDoms = metadata.dom.toString().match(/<iframe.*iframe>/m);
+		    metadata.iframeDoms = a_page.evaluate(function() {
+                        var iframes = document.getElementsByTagName('iframe');
+			var iframeArray = [];
+                        for (var i = 0; i < iframes.length; ++i) {
+                            if (iframes[i].src && iframes[i].contentWindow.document) {
+			        iframeArray.push({'src': iframes[i].src, 'document': iframes[i].contentWindow.document.documentElement.innerHTML });
+			    }
+                        }
+                        return iframeArray;
+                    });
 		    metadata.allResourceURLs = a_page.allResourceURLs;
 		    delete metadata.tocb;
 		    console.log("Writing to result queue...");
@@ -316,4 +325,4 @@ setInterval(function () {
         phantom.exit();
     }
     lastheartbeat = heartbeat;
-}, 30000);
+}, 31000);

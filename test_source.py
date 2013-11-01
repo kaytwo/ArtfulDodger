@@ -10,10 +10,11 @@ import time
 infile = 'top-1m.csv.bz2'
 numurls = int(sys.argv[1]) if len(sys.argv) > 1 else 100
 r = redis.StrictRedis(host='localhost',port=6379,db=0)
+'''r.lpush('resque:crawlqueue', json.dumps({'url':'http://www.w3schools.com/js/js_loop_for.asp'}))'''
 '''r.lpush('resque:crawlqueue', json.dumps({'url':'http://www.bbc.co.uk/'}))'''
 '''r.lpush('resque:crawlqueue', json.dumps({'url':'http://stream-tv.me/watch-modern-family-online/'}))'''
-urls_added = 0
 
+urls_added = 0
 f = bz2.BZ2File(infile)
 for line in f.readlines():
   if len(line.strip()) > 0:

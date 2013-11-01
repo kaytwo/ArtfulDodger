@@ -16,9 +16,9 @@ echo
 echo "DA CRAWL..."
 if [ $2 ]
 then
-    phantomjs url_worker.js $2
+    phantomjs --web-security=no url_worker.js $2
 else
-    phantomjs url_worker.js
+    phantomjs --web-security=no url_worker.js
 fi
 echo
 
