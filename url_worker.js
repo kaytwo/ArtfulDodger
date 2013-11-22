@@ -2,6 +2,7 @@
 // then store the resulting DOM and redirchain to resultqueue
 
 phantom.injectJs("resque.js");
+phantom.injectJs("jsuri-1.1.1.min.js");
 
 var heartbeat = 1,
     lastheartbeat = 0,
@@ -15,7 +16,7 @@ var heartbeat = 1,
     current_url,
     a_page,
     is_timed_out,
-    total_timeout_time = 30000,
+    total_timeout_time = 15000,
     max_retries = 3,
     start_time,
     current_time,
@@ -47,7 +48,7 @@ var heartbeat = 1,
         accept_encoding.splice(this_browser.acceptHeaders['accept-encoding'].indexOf("gzip"), 1);
         headers['Accept-Encoding'] = accept_encoding.join();
 
-	//sruti: not sure why we need to have a referer at initial request
+	//not sure why we need to have a referer at initial request
         //headers['Referer'] = ref;
         
         page.customHeaders = headers;
@@ -110,7 +111,6 @@ var heartbeat = 1,
             console.log("Resource timeout!");
             if (a_page.redirChain.slice(-1)[0]["url"] === req.url ||  a_page.origURL === req.url) {
 		is_timed_out = true;
-                console.log("RESOURCE TIMEOUT");
 	    }
         };
 
@@ -178,12 +178,15 @@ var heartbeat = 1,
 
             // wiggle the mouse - sendEvent interrupts this thread of execution???
             setTimeout(function () {
-                a_page.sendEvent('mousemove', 200, 200);
+                if (a_page) {
+		    a_page.sendEvent('mousemove', 200, 200);
+		}
             }, 10);
 
             // give the page 1.2 seconds for any sneaky redirects
             metadata.tocb = setTimeout(function () {
                 if (is_timed_out) {
+ 		    console.log("IS TIMED OUT");
                     redis.get_value(retry_table_name, a_page.origURL, function(result) {
                         var retries = parseInt(result["HGET"]);
                         if (retries !== null && retries === max_retries) {
@@ -246,6 +249,32 @@ var heartbeat = 1,
                         }
                         return iframeArray;
                     });
+                    metadata.iframeDomains = {};
+                    for (var i = 0; i < metadata.iframeDoms.length; ++i) {
+                        var uri = new Uri(metadata.iframeDoms[i].src);
+                        if (!metadata.iframeDomains[uri.host()])
+                            metadata.iframeDomains[uri.host()] = 1;
+                        else
+                            metadata.iframeDomains[uri.host()] += 1;
+                    }
+		    metadata.scriptSrc = a_page.evaluate(function() {
+			var scripts = document.getElementsByTagName('script');
+			var scriptSrcArray = [];
+			for (var i = 0; i < scripts.length; ++i) {
+		            if (scripts[i].src) {
+				scriptSrcArray.push(scripts[i].src);
+                            }
+			}
+			return scriptSrcArray;
+		    });
+                    metadata.scriptDomains = {};
+                    for (var i = 0; i < metadata.scriptSrc.length; ++i) {
+			var uri = new Uri(metadata.scriptSrc[i]);
+                        if (!metadata.scriptDomains[uri.host()])
+			    metadata.scriptDomains[uri.host()] = 1;
+                        else
+                            metadata.scriptDomains[uri.host()] += 1;
+                    }
 		    metadata.allResourceURLs = a_page.allResourceURLs;
 		    delete metadata.tocb;
 		    console.log("Writing to result queue...");
@@ -293,8 +322,7 @@ var heartbeat = 1,
     },
     queue_empty = function () {
         heartbeat++;
-        //sruti: how would the queue refill?
-        //consolie.log("exhausted queue. sleeping for it to refill");
+        //console.log("exhausted queue. sleeping for it to refill");
         /*setTimeout(function () {
             read_queue();
         }, total_timeout_time+5000);*/
@@ -325,4 +353,4 @@ setInterval(function () {
         phantom.exit();
     }
     lastheartbeat = heartbeat;
-}, 31000);
+}, 30000);
