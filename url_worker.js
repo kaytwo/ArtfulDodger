@@ -186,17 +186,77 @@ var heartbeat = 1,
 
             // give the page 1.2 seconds for any sneaky redirects
             metadata.tocb = setTimeout(function () {
+		// Set the metadata to write out to the queue
+		var set_metadata = function() {	
+		    // Cleanup poor behavior on onResourceRecieved
+	            if (a_page) {
+                    page_url = a_page.url
+                        page_url = a_page.origURL;
+                    }
+                    a_page.allResourcesAndContent[page_url] = a_page.content;
+
+                    for (var i in a_page.redirChain) {
+
+                        if (!a_page.redirChain[i]["status"] && a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]]) {
+                            a_page.redirChain[i]["status"] = a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]];
+                        }
+
+                        if (!a_page.redirChain[i]["content"] && a_page.allResourcesAndContent[a_page.redirChain[i]["url"]]) {
+                            a_page.redirChain[i]["content"] = a_page.allResourcesAndContent[a_page.redirChain[i]["url"]];
+                        }
+                    }
+		    metadata.url = page_url;
+                    metadata.browser_ID = this_browser.ID;
+                    metadata.dom = a_page.content;
+                    metadata.sshot = a_page.renderBase64('PNG');
+                    metadata.redirs = a_page.redirChain.slice(0);
+                    metadata.status = status;
+                    metadata.ts = new Date().getTime();
+                    metadata.iframeDoms = a_page.evaluate(function() {
+                        var iframes = document.getElementsByTagName('iframe');
+                        var iframeArray = [];
+                        for (var i = 0; i < iframes.length; ++i) {
+                            if (iframes[i].src && iframes[i].contentWindow.document) {
+                                iframeArray.push({'src': iframes[i].src, 'document': iframes[i].contentWindow.document.documentElement.innerHTML });
+                            }
+                        }
+                        return iframeArray;
+                    });
+                    metadata.iframeDomains = {};
+                    for (var i = 0; i < metadata.iframeDoms.length; ++i) {
+                        var uri = new Uri(metadata.iframeDoms[i].src);
+                        if (!metadata.iframeDomains[uri.host()])
+                            metadata.iframeDomains[uri.host()] = 1;
+                        else
+                            metadata.iframeDomains[uri.host()] += 1;
+                    }
+		    metadata.scriptSrc = a_page.evaluate(function() {
+                        var scripts = document.getElementsByTagName('script');
+                        var scriptSrcArray = [];
+                        for (var i = 0; i < scripts.length; ++i) {
+                            if (scripts[i].src) {
+                                scriptSrcArray.push(scripts[i].src);
+                            }
+                        }
+                        return scriptSrcArray;
+                    });
+                    metadata.scriptDomains = {};
+                    for (var i = 0; i < metadata.scriptSrc.length; ++i) {
+                        var uri = new Uri(metadata.scriptSrc[i]);
+                        if (!metadata.scriptDomains[uri.host()])
+                            metadata.scriptDomains[uri.host()] = 1;
+                        else
+                            metadata.scriptDomains[uri.host()] += 1;
+                    }
+                    metadata.allResourceURLs = a_page.allResourceURLs;	    
+                };
                 if (is_timed_out) {
  		    console.log("IS TIMED OUT");
                     redis.get_value(retry_table_name, a_page.origURL, function(result) {
                         var retries = parseInt(result["HGET"]);
                         if (retries !== null && retries === max_retries) {
-                            metadata.url = page_url;
-			    metadata.browser_ID = this_browser.ID;
-                            metadata.dom = a_page.content;
-			    metadata.status = "Page failed to load fully in " + total_timeout_time + " ms";
-                            metadata.ts = new Date().getTime();
-                            metadata.allResourceURLs = a_page.allResourceURLs;
+			    status = "Page failed to load fully in " + total_timeout_time + " ms";
+			    set_metadata();
                             delete metadata.tocb;
                             console.log("Writing to result queue (timed out object)...");
                             redis.push(out_queue_name, metadata);
@@ -212,71 +272,10 @@ var heartbeat = 1,
                         }
                     });     
 		} else {
-
 		    if (status !== 'success') {
 			status = a_page.failreason;
 		    }
-		    // Cleanup poor behavior on onResourceRecieved
-		    if (a_page) {
-                    page_url = a_page.url
-		        page_url = a_page.origURL;
-		    }
-		    a_page.allResourcesAndContent[page_url] = a_page.content;
-			
-		    for (var i in a_page.redirChain) {
-
-			if (!a_page.redirChain[i]["status"] && a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]]) {
-			    a_page.redirChain[i]["status"] = a_page.allResourcesAndStatus[a_page.redirChain[i]["url"]];
-			}
-
-			if (!a_page.redirChain[i]["content"] && a_page.allResourcesAndContent[a_page.redirChain[i]["url"]]) {
-			    a_page.redirChain[i]["content"] = a_page.allResourcesAndContent[a_page.redirChain[i]["url"]];
-			}
-		    }
-		    metadata.url = page_url;
-	            metadata.browser_ID = this_browser.ID;
-		    metadata.dom = a_page.content;
-		    metadata.sshot = a_page.renderBase64('PNG');
-		    metadata.redirs = a_page.redirChain.slice(0);
-		    metadata.status = status;
-		    metadata.ts = new Date().getTime();
-		    metadata.iframeDoms = a_page.evaluate(function() {
-                        var iframes = document.getElementsByTagName('iframe');
-			var iframeArray = [];
-                        for (var i = 0; i < iframes.length; ++i) {
-                            if (iframes[i].src && iframes[i].contentWindow.document) {
-			        iframeArray.push({'src': iframes[i].src, 'document': iframes[i].contentWindow.document.documentElement.innerHTML });
-			    }
-                        }
-                        return iframeArray;
-                    });
-                    metadata.iframeDomains = {};
-                    for (var i = 0; i < metadata.iframeDoms.length; ++i) {
-                        var uri = new Uri(metadata.iframeDoms[i].src);
-                        if (!metadata.iframeDomains[uri.host()])
-                            metadata.iframeDomains[uri.host()] = 1;
-                        else
-                            metadata.iframeDomains[uri.host()] += 1;
-                    }
-		    metadata.scriptSrc = a_page.evaluate(function() {
-			var scripts = document.getElementsByTagName('script');
-			var scriptSrcArray = [];
-			for (var i = 0; i < scripts.length; ++i) {
-		            if (scripts[i].src) {
-				scriptSrcArray.push(scripts[i].src);
-                            }
-			}
-			return scriptSrcArray;
-		    });
-                    metadata.scriptDomains = {};
-                    for (var i = 0; i < metadata.scriptSrc.length; ++i) {
-			var uri = new Uri(metadata.scriptSrc[i]);
-                        if (!metadata.scriptDomains[uri.host()])
-			    metadata.scriptDomains[uri.host()] = 1;
-                        else
-                            metadata.scriptDomains[uri.host()] += 1;
-                    }
-		    metadata.allResourceURLs = a_page.allResourceURLs;
+		    set_metadata();
 		    delete metadata.tocb;
 		    console.log("Writing to result queue...");
 		    redis.push(out_queue_name, metadata);
@@ -308,7 +307,6 @@ var heartbeat = 1,
         a_page.open(url);
     },
     read_queue = function () {
-        console.log("going to read queue");
         redis.pop(in_queue_name, function (item) {
             if (!item) {
                 setTimeout(queue_empty, 25);
