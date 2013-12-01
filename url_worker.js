@@ -16,8 +16,8 @@ var heartbeat = 1,
     current_url,
     a_page,
     is_timed_out,
-    total_timeout_time = 15000,
-    max_retries = 3,
+    total_timeout_time = 3500,
+    max_retries = 2,
     start_time,
     current_time,
     time_left,
@@ -34,7 +34,7 @@ var heartbeat = 1,
         //Resource timeout starts as the total timeout time.
         time_left = total_timeout_time;
         page.settings.resourceTimeout = time_left;
-        page.onConsoleMessage = function (msg) { console.log(msg); };
+        page.onConsoleMessage = function (msg) { /*console.log(msg);*/ };
         page.onError = function (msg, trace) {};
         
         headers = {
@@ -108,9 +108,10 @@ var heartbeat = 1,
         };
 
         a_page.onResourceTimeout = function (req) {
-            console.log("Resource timeout!");
+            //console.log("Resource timeout!");
             if (a_page.redirChain.slice(-1)[0]["url"] === req.url ||  a_page.origURL === req.url) {
 		is_timed_out = true;
+		//console.log("Page timed out");
 	    }
         };
 
@@ -216,8 +217,8 @@ var heartbeat = 1,
 			status = a_page.failreason;
 		    }
 		    // Cleanup poor behavior on onResourceRecieved
-		    page_url = a_page.url
-		    if (page_url === "about:blank") {
+		    if (a_page) {
+                    page_url = a_page.url
 		        page_url = a_page.origURL;
 		    }
 		    a_page.allResourcesAndContent[page_url] = a_page.content;
@@ -291,7 +292,7 @@ var heartbeat = 1,
                 current_time = new Date().getTime();
 
                 time_left = current_time - start_time;
-                a_page.settings.resourceTimeout = total_timeout_time - time_left;
+                //a_page.settings.resourceTimeout = total_timeout_time - time_left;
                 if (a_page.settings.resourceTimeout < 0)
                     a_page.settings.resourceTimeout = 0;
                 datum = new Object();
@@ -307,6 +308,7 @@ var heartbeat = 1,
         a_page.open(url);
     },
     read_queue = function () {
+        console.log("going to read queue");
         redis.pop(in_queue_name, function (item) {
             if (!item) {
                 setTimeout(queue_empty, 25);
@@ -321,11 +323,11 @@ var heartbeat = 1,
         });
     },
     queue_empty = function () {
-        heartbeat++;
-        //console.log("exhausted queue. sleeping for it to refill");
-        /*setTimeout(function () {
+        /*heartbeat++;
+        console.log("exhausted queue. sleeping for it to refill");
+        setTimeout(function () {
             read_queue();
-        }, total_timeout_time+5000);*/
+        }, 5000);*/
     };
 
 var args = require('system').args;
@@ -353,4 +355,4 @@ setInterval(function () {
         phantom.exit();
     }
     lastheartbeat = heartbeat;
-}, 30000);
+}, 40000);
