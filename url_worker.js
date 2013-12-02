@@ -16,7 +16,7 @@ var heartbeat = 1,
     current_url,
     a_page,
     is_timed_out,
-    total_timeout_time = 500,
+    total_timeout_time = 4000,
     max_retries = 1,
     start_time,
     current_time,
@@ -252,7 +252,7 @@ var heartbeat = 1,
                     }
                     metadata.allResourceURLs = a_page.allResourceURLs;	    
                 };
-                /*if (is_timed_out) {
+                if (is_timed_out) {
  		    console.log("IS TIMED OUT (" + current_url.url + ")");
                     redis.get_value(retry_table_name, a_page.origURL, function(result) {
                         var retries = parseInt(result["HGET"]);
@@ -275,7 +275,7 @@ var heartbeat = 1,
                             return;
                         }
                     });     
-		} else {*/
+		} else {
 		    if (status !== 'success') {
 			status = a_page.failreason;
 		    }
@@ -287,7 +287,7 @@ var heartbeat = 1,
 		    a_page.close();
 		    setTimeout(read_queue, 25);
 		    return;
-               // }
+                }
             }, 1200);
         };
 
