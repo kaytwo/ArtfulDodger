@@ -16,8 +16,8 @@ var heartbeat = 1,
     current_url,
     a_page,
     is_timed_out,
-    total_timeout_time = 3500,
-    max_retries = 2,
+    total_timeout_time = 500,
+    max_retries = 1,
     start_time,
     current_time,
     time_left,
@@ -62,7 +62,9 @@ var heartbeat = 1,
 
         return page;
     },
-    load_page = function (url) {
+    load_page = function (item) {
+	current_url = item;
+	var url = item.url;
 	console.log("Crawling: " + url);
         heartbeat++;
         var metadata = new Object();
@@ -193,6 +195,7 @@ var heartbeat = 1,
                     page_url = a_page.url
                         page_url = a_page.origURL;
                     }
+		    metadata.url = page_url;
                     a_page.allResourcesAndContent[page_url] = a_page.content;
 
                     for (var i in a_page.redirChain) {
@@ -205,7 +208,6 @@ var heartbeat = 1,
                             a_page.redirChain[i]["content"] = a_page.allResourcesAndContent[a_page.redirChain[i]["url"]];
                         }
                     }
-		    metadata.url = page_url;
                     metadata.browser_ID = this_browser.ID;
                     metadata.dom = a_page.content;
                     metadata.sshot = a_page.renderBase64('PNG');
@@ -250,39 +252,42 @@ var heartbeat = 1,
                     }
                     metadata.allResourceURLs = a_page.allResourceURLs;	    
                 };
-                if (is_timed_out) {
- 		    console.log("IS TIMED OUT");
+                /*if (is_timed_out) {
+ 		    console.log("IS TIMED OUT (" + current_url.url + ")");
                     redis.get_value(retry_table_name, a_page.origURL, function(result) {
                         var retries = parseInt(result["HGET"]);
                         if (retries !== null && retries === max_retries) {
 			    status = "Page failed to load fully in " + total_timeout_time + " ms";
+			    console.log("Going to reenter the url!!");
 			    set_metadata();
                             delete metadata.tocb;
-                            console.log("Writing to result queue (timed out object)...");
+                            console.log("Finished crawling " + current_url.url + " (timed out)");
+                            //console.log("Writing " + current_url.url + " to result queue (timed out object)...");
                             redis.push(out_queue_name, metadata);
-			    //a_page.close();
+			    a_page.close();
                             setTimeout(read_queue, 25);
 			    return;
                         } else {
 			    redis.inc_value(retry_table_name, a_page.origURL, 1);
 			    redis.push(in_queue_name, current_url);
-                            //a_page.close();
+                            a_page.close();
                             setTimeout(read_queue, 25);
                             return;
                         }
                     });     
-		} else {
+		} else {*/
 		    if (status !== 'success') {
 			status = a_page.failreason;
 		    }
 		    set_metadata();
 		    delete metadata.tocb;
-		    console.log("Writing to result queue...");
+		    //console.log("Writing " + current_url.url + " to result queue...");
+		    console.log("Finished crawling " + current_url.url);
 		    redis.push(out_queue_name, metadata);
 		    a_page.close();
 		    setTimeout(read_queue, 25);
 		    return;
-                }
+               // }
             }, 1200);
         };
 
@@ -291,7 +296,7 @@ var heartbeat = 1,
                 current_time = new Date().getTime();
 
                 time_left = current_time - start_time;
-                //a_page.settings.resourceTimeout = total_timeout_time - time_left;
+                a_page.settings.resourceTimeout = total_timeout_time - time_left;
                 if (a_page.settings.resourceTimeout < 0)
                     a_page.settings.resourceTimeout = 0;
                 datum = new Object();
@@ -315,17 +320,16 @@ var heartbeat = 1,
                 setTimeout(read_queue, 25);
                 return;
             } else {
-                current_url = item;
-                load_page(item.url);
+                load_page(item);
             }
         });
     },
     queue_empty = function () {
-        /*heartbeat++;
-        console.log("exhausted queue. sleeping for it to refill");
-        setTimeout(function () {
+        //heartbeat++;
+        //console.log("exhausted queue. sleeping for it to refill");
+        setInterval(function () {
             read_queue();
-        }, 5000);*/
+        }, 2000);
     };
 
 var args = require('system').args;
@@ -346,11 +350,11 @@ else
 redis = new Resque(hostname, portnum, function (resque) {
     read_queue();
 });
-setInterval(function () {
+/*setInterval(function () {
     // page hasn't successfully loaded in N seconds, die and be reborn
     if (lastheartbeat === heartbeat) {
-        console.log("exiting due to lack of forward progress.");
+        //console.log("exiting due to lack of forward progress.");
         phantom.exit();
     }
     lastheartbeat = heartbeat;
-}, 40000);
+}, 100000);*/

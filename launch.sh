@@ -10,5 +10,6 @@ WEBDIS_PORT=${4:-"7379"}
 # IMAGES="--load-images=false"
 cd $SCRIPT_PATH
 for i in `seq 1 $NUM_INSTANCES` ; do 
-  (while true ; do phantomjs url_worker.js  > /dev/null 2>> /tmp/phantom_errors ; done) &
+  #while true ; do phantomjs url_worker.js  > /dev/null 2>> /tmp/phantom_errors ; done) &
+  phantomjs url_worker.js &
 done
