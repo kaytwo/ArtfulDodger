@@ -117,9 +117,7 @@ var heartbeat = 1,
 	    }
         };
 
-        a_page.onResourceRequested = function (req) {
-	    //console.log("Resource requested: " + req.url);
-        };
+        a_page.onResourceRequested = function (req) { };
 
         a_page.onResourceReceived = function (resp) {
             a_page.allResourceURLs.push(resp.url);
@@ -173,7 +171,6 @@ var heartbeat = 1,
 
         a_page.onLoadFinished = function (status) {
 
-            //console.log("load finished");
             if (metadata.tocb) {
                 clearTimeout(metadata.tocb);
                 delete metadata.tocb;
@@ -214,6 +211,8 @@ var heartbeat = 1,
                     metadata.redirs = a_page.redirChain.slice(0);
                     metadata.status = status;
                     metadata.ts = new Date().getTime();
+
+		    // Record the iframe DOMs
                     metadata.iframeDoms = a_page.evaluate(function() {
                         var iframes = document.getElementsByTagName('iframe');
                         var iframeArray = [];
@@ -224,6 +223,8 @@ var heartbeat = 1,
                         }
                         return iframeArray;
                     });
+		    
+		    // Store the iframe domains
                     metadata.iframeDomains = {};
                     for (var i = 0; i < metadata.iframeDoms.length; ++i) {
                         var uri = new Uri(metadata.iframeDoms[i].src);
@@ -232,6 +233,8 @@ var heartbeat = 1,
                         else
                             metadata.iframeDomains[uri.host()] += 1;
                     }
+
+		    // Keep track of all included script source domains
 		    metadata.scriptSrc = a_page.evaluate(function() {
                         var scripts = document.getElementsByTagName('script');
                         var scriptSrcArray = [];
@@ -258,11 +261,9 @@ var heartbeat = 1,
                         var retries = parseInt(result["HGET"]);
                         if (retries !== null && retries === max_retries) {
 			    status = "Page failed to load fully in " + total_timeout_time + " ms";
-			    console.log("Going to reenter the url!!");
 			    set_metadata();
                             delete metadata.tocb;
                             console.log("Finished crawling " + current_url.url + " (timed out)");
-                            //console.log("Writing " + current_url.url + " to result queue (timed out object)...");
                             redis.push(out_queue_name, metadata);
 			    a_page.close();
                             setTimeout(read_queue, 25);
@@ -281,7 +282,6 @@ var heartbeat = 1,
 		    }
 		    set_metadata();
 		    delete metadata.tocb;
-		    //console.log("Writing " + current_url.url + " to result queue...");
 		    console.log("Finished crawling " + current_url.url);
 		    redis.push(out_queue_name, metadata);
 		    a_page.close();
