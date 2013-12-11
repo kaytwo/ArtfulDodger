@@ -79,7 +79,7 @@ var heartbeat = 1,
         a_page.failreason = 'unknown error';
 
         a_page.onInitialized = function () {
-            page.evaluate(function (this_browser) {
+            a_page.evaluate(function (this_browser) {
                 (function () {
 
                     //Make phantom browser imitate selected browser persona
@@ -327,7 +327,7 @@ var heartbeat = 1,
     queue_empty = function () {
         //heartbeat++;
         //console.log("exhausted queue. sleeping for it to refill");
-        setInterval(function () {
+        setTimeout(function () {
             read_queue();
         }, 2000);
     };
@@ -350,11 +350,11 @@ else
 redis = new Resque(hostname, portnum, function (resque) {
     read_queue();
 });
-/*setInterval(function () {
+setInterval(function () {
     // page hasn't successfully loaded in N seconds, die and be reborn
     if (lastheartbeat === heartbeat) {
-        //console.log("exiting due to lack of forward progress.");
+        console.log("exiting due to lack of forward progress.");
         phantom.exit();
     }
     lastheartbeat = heartbeat;
-}, 100000);*/
+}, 45000);
