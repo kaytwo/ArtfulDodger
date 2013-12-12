@@ -1,8 +1,0 @@
-Time after completion: (average):
-10 workers 50-60s
-
-50   10   12560214331  time:  96  crawled:  50
-100   10   12560214331  time:  153  crawled:  100
-50   10   12560214331  time:  96  crawled:  50
-100   10   12560214331  time:  157  crawled:  100
-200   10   12560214331  time:  290  crawled:  199
