@@ -16,6 +16,8 @@ tmppath = 'crawlresults'
 r = redis.StrictRedis(host='localhost',port=6379,db=0)
 waits = 0
 outputs = 0
+r_in_queue = r.llen('resque:resultqueue')
+ex = 0
 while True:
   today = time.strftime('%Y%m%d%H')
   todayfn = '/doms.' + today + '.json'
@@ -44,8 +46,10 @@ while True:
         val['dom'] = val['dom']
         f.write(json.dumps(val)+'\n')
         f.flush()
+        if (outputs == r_in_queue) : ex = 1
       else:
         waits += 1
       sys.stdout.write('\rwaits: %d\tresults: %d'%(waits,outputs))
       sys.stdout.flush()
+      if (ex == 1) : sys.exit()
   move(todayfile,permfile)

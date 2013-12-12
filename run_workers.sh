@@ -1,31 +1,46 @@
 #!/bin/bash
 
-NUM_URLS=${1:-100}
+# ./run_workers.sh NUM_URLS NUM_INSTANCES BROWSER_ID WEBDIS_HOST WEBDIS_PORT SCRIPT_PATH
 python clear_queues.py
 
-echo "Inserting URLs in crawlqueue"
+NUM_URLS=${1:-100}
 python test_source.py $NUM_URLS
 
-# launch 25 instances by default; first arg can be diff number of instances
-# ./launch.sh NUMPROCS SCRIPT_PATH WEBDIS_HOST WEBDIS_PORT
-SCRIPT_PATH=${3:-"/home/ec2-user/ArtfulDodger/"}
-#WEBDIS_HOST=${3:-"localhost"}
-#WEBDIS_PORT=${4:-"7379"}
 NUM_INSTANCES=${2:-10}
-# PROXY="--proxy=127.0.0.1:3128"
-# IMAGES="--load-images=false"
+BROWSER_ID=$3
+WEBDIS_HOST=${4:-"localhost"}
+WEBDIS_PORT=${5:-"7379"}
+SCRIPT_PATH=${6:-"/home/ec2-user/ArtfulDodger/"}
 
-echo "DA CRAWL..."
+echo "Crawling..."
 cd $SCRIPT_PATH
-for i in `seq 1 $NUM_INSTANCES` ; do
-  #while true ; do phantomjs url_worker.js  > /dev/null 2>> /tmp/phantom_errors ; done) &
-  phantomjs --web-security=no url_worker.js &
-done
+if [ ! -d "crawlresults" ] 
+then 
+    mkdir "crawlresults"
+fi
+if [ ! -d "crawlresults/sshots" ]
+then
+    mkdir "crawlresults/sshots"
+fi
+
+if [ $BROWSER_ID ]
+then
+    for i in `seq 1 $NUM_INSTANCES` ; do
+      phantomjs --web-security=no url_worker.js $BROWSER_ID $WEBDIS_HOST $WEBDIS_PORT > /dev/null &
+    done
+else
+    for i in `seq 1 $NUM_INSTANCES` ; do
+      phantomjs --web-security=no url_worker.js > /dev/null &
+    done
+fi
 
 #Loop until all phantom processes are killed.
+START=$(date +"%s")
 until [ $(ps aux | grep phantomjs | wc -l) -eq 1 ]
 do
     sleep 5; 
 done
-
-python result_sink.py
+END=$(date +"%s")
+CRAWLED=$(python get_len.py)
+echo $NUM_URLS " " $NUM_INSTANCES " " $BROWSER_ID " time: " $(($END - $START)) " crawled: " $CRAWLED >> results.txt
+python result_sink.py 
