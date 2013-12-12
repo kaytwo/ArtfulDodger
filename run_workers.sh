@@ -10,19 +10,20 @@ NUM_INSTANCES=${2:-10}
 BROWSER_ID=$3
 WEBDIS_HOST=${4:-"localhost"}
 WEBDIS_PORT=${5:-"7379"}
-SCRIPT_PATH=${6:-"/home/ec2-user/ArtfulDodger/"}
+SCRIPT_PATH=${6:-"~/ArtfulDodger/"}
 
 echo "Crawling..."
-cd $SCRIPT_PATH
-if [ ! -d "crawlresults" ] 
+
+if [ ! -d "/tmp/crawlresults" ] 
 then 
-    mkdir "crawlresults"
+    mkdir "/tmp/crawlresults"
 fi
-if [ ! -d "crawlresults/sshots" ]
+if [ ! -d "/tmp/crawlresults/sshots" ]
 then
-    mkdir "crawlresults/sshots"
+    mkdir "/tmp/crawlresults/sshots"
 fi
 
+cd $SCRIPT_PATH
 if [ $BROWSER_ID ]
 then
     for i in `seq 1 $NUM_INSTANCES` ; do
@@ -41,6 +42,6 @@ do
     sleep 5; 
 done
 END=$(date +"%s")
-CRAWLED=$(python get_len.py)
+CRAWLED=$(python ~/crawler_extra/get_len.py)
 echo $NUM_URLS " " $NUM_INSTANCES " " $BROWSER_ID " time: " $(($END - $START)) " crawled: " $CRAWLED >> results.txt
 python result_sink.py 

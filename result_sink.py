@@ -10,9 +10,9 @@ from shutil import move
 
 '''super simple web crawl result consumer'''
 
-outpath = sys.argv[1] if len(sys.argv) >= 2 else 'crawlresults'
+outpath = sys.argv[1] if len(sys.argv) >= 2 else '/tmp/crawlresults/'
 sample_sshot = True if len(sys.argv) >= 3 else False
-tmppath = 'crawlresults'
+tmppath = '/tmp/crawlresults/'
 r = redis.StrictRedis(host='localhost',port=6379,db=0)
 waits = 0
 outputs = 0
