@@ -1,16 +1,17 @@
 #!/bin/bash
 
 # ./run_workers.sh NUM_URLS NUM_INSTANCES BROWSER_ID WEBDIS_HOST WEBDIS_PORT SCRIPT_PATH
+killall phantomjs 2> /dev/null
 python clear_queues.py
 
 NUM_URLS=${1:-100}
-python test_source.py $NUM_URLS
+python test_source.py $NUM_URLS > /dev/null
 
 NUM_INSTANCES=${2:-10}
 BROWSER_ID=$3
 WEBDIS_HOST=${4:-"localhost"}
 WEBDIS_PORT=${5:-"7379"}
-SCRIPT_PATH=${6:-"~/ArtfulDodger/"}
+SCRIPT_PATH=${6:-"/home/ec2-user/ArtfulDodger/"}
 
 echo "Crawling..."
 
@@ -42,6 +43,6 @@ do
     sleep 5; 
 done
 END=$(date +"%s")
-CRAWLED=$(python ~/crawler_extra/get_len.py)
-echo $NUM_URLS " " $NUM_INSTANCES " " $BROWSER_ID " time: " $(($END - $START)) " crawled: " $CRAWLED >> results.txt
+CRAWLED=$(python /home/ec2-user/crawler_extra/get_len.py)
+echo $NUM_URLS " " $NUM_INSTANCES " " $BROWSER_ID " time: " $(($END - $START)) " crawled: " $CRAWLED >> /home/ec2-user/crawler_extra/results.txt
 python result_sink.py 
