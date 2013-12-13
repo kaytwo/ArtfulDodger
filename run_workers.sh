@@ -28,11 +28,11 @@ cd $SCRIPT_PATH
 if [ $BROWSER_ID ]
 then
     for i in `seq 1 $NUM_INSTANCES` ; do
-      phantomjs --web-security=no url_worker.js $BROWSER_ID $WEBDIS_HOST $WEBDIS_PORT > /dev/null &
+      (phantomjs --web-security=no url_worker.js $BROWSER_ID $WEBDIS_HOST $WEBDIS_PORT >& /dev/null) &
     done
 else
     for i in `seq 1 $NUM_INSTANCES` ; do
-      phantomjs --web-security=no url_worker.js > /dev/null &
+      (phantomjs --web-security=no url_worker.js >& /dev/null) &
     done
 fi
 
@@ -43,6 +43,10 @@ do
     sleep 5; 
 done
 END=$(date +"%s")
+
 CRAWLED=$(python /home/ec2-user/crawler_extra/get_len.py)
-echo $NUM_URLS " " $NUM_INSTANCES " " $BROWSER_ID " time: " $(($END - $START)) " crawled: " $CRAWLED >> /home/ec2-user/crawler_extra/results.txt
-python result_sink.py 
+echo $NUM_URLS " " $NUM_INSTANCES " " $BROWSER_ID " time: " $(($END - $START)) " crawled: " $CRAWLED >> /tmp/crawl_analytics.txt
+
+python result_sink.py
+
+rm dump.rdb 2> /dev/null 

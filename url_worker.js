@@ -1,5 +1,6 @@
 // pull URLs to load from crawlqueue, load them,
-// then store the resulting DOM and redirchain to resultqueue
+// then store the resulting DOM and redirchain to resultqueue. 
+// Now stores iframe DOMS, sources, external scripts as well
 
 phantom.injectJs("resque.js");
 phantom.injectJs("jsuri-1.1.1.min.js");
@@ -31,10 +32,10 @@ var heartbeat = 1,
         // most popular browser to wikimedia sites
         page.settings.userAgent = this_browser.navigator.userAgent;
 
-        //Resource timeout starts as the total timeout time.
+        // Resource timeout starts as the total timeout time.
         time_left = total_timeout_time;
         page.settings.resourceTimeout = time_left;
-        page.onConsoleMessage = function (msg) { /*console.log(msg);*/ };
+        page.onConsoleMessage = function (msg) { };
         page.onError = function (msg, trace) {};
         
         headers = {
@@ -43,13 +44,13 @@ var heartbeat = 1,
             'Connection': 'Keep-Alive'
         };
         
-        //Remove 'gzip' from the Accept-Encoding header, phantomjs is intolerant
+        // Remove 'gzip' from the Accept-Encoding header, phantomjs is intolerant
 	var accept_encoding = this_browser.acceptHeaders['accept-encoding'].split(",");
         accept_encoding.splice(this_browser.acceptHeaders['accept-encoding'].indexOf("gzip"), 1);
         headers['Accept-Encoding'] = accept_encoding.join();
 
-	//not sure why we need to have a referer at initial request
-        //headers['Referer'] = ref;
+	// not sure why we need to have a referer at initial request
+        // headers['Referer'] = ref;
         
         page.customHeaders = headers;
 
@@ -110,10 +111,8 @@ var heartbeat = 1,
         };
 
         a_page.onResourceTimeout = function (req) {
-            //console.log("Resource timeout!");
             if (a_page.redirChain.slice(-1)[0]["url"] === req.url ||  a_page.origURL === req.url) {
 		is_timed_out = true;
-		//console.log("Page timed out");
 	    }
         };
 
@@ -256,14 +255,12 @@ var heartbeat = 1,
                     metadata.allResourceURLs = a_page.allResourceURLs;	    
                 };
                 if (is_timed_out) {
- 		    console.log("IS TIMED OUT (" + current_url.url + ")");
                     redis.get_value(retry_table_name, a_page.origURL, function(result) {
                         var retries = parseInt(result["HGET"]);
                         if (retries !== null && retries === max_retries) {
 			    status = "Page failed to load fully in " + total_timeout_time + " ms";
 			    set_metadata();
                             delete metadata.tocb;
-                            console.log("Finished crawling " + current_url.url + " (timed out)");
                             redis.push(out_queue_name, metadata);
 			    a_page.close();
                             setTimeout(read_queue, 25);
@@ -282,7 +279,6 @@ var heartbeat = 1,
 		    }
 		    set_metadata();
 		    delete metadata.tocb;
-		    console.log("Finished crawling " + current_url.url);
 		    redis.push(out_queue_name, metadata);
 		    a_page.close();
 		    setTimeout(read_queue, 25);
@@ -325,8 +321,6 @@ var heartbeat = 1,
         });
     },
     queue_empty = function () {
-        //heartbeat++;
-        //console.log("exhausted queue. sleeping for it to refill");
         setTimeout(function () {
             read_queue();
         }, 2000);
@@ -334,8 +328,11 @@ var heartbeat = 1,
 
 var args = require('system').args;
 var hostname, portnum;
-if (args.length > 1)
+if (args.length > 1) {
     this_browser = browsers[args[1]];
+    if (this_browser === null)
+       this_browser = browsers[Object.keys(browsers)[Math.floor(Math.random() * Object.keys(browsers).length)]];        
+}
 else
     this_browser = browsers[Object.keys(browsers)[Math.floor(Math.random() * Object.keys(browsers).length)]];
 if (args.length > 2)
