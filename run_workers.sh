@@ -28,11 +28,13 @@ cd $SCRIPT_PATH
 if [ $BROWSER_ID ]
 then
     for i in `seq 1 $NUM_INSTANCES` ; do
-      (phantomjs --web-security=no url_worker.js $BROWSER_ID $WEBDIS_HOST $WEBDIS_PORT >& /dev/null) &
+      #(phantomjs --web-security=no url_worker.js $BROWSER_ID $WEBDIS_HOST $WEBDIS_PORT >& /dev/null) &
+      (phantomjs --web-security=no url_worker.js $BROWSER_ID $WEBDIS_HOST $WEBDIS_PORT) &
     done
 else
     for i in `seq 1 $NUM_INSTANCES` ; do
-      (phantomjs --web-security=no url_worker.js >& /dev/null) &
+      #(phantomjs --web-security=no url_worker.js >& /dev/null) &
+      (phantomjs --web-security=no url_worker.js) &
     done
 fi
 

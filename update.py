@@ -2,7 +2,7 @@
 
 import httplib2
 
-resp, content = httplib2.Http().request("http://ec2-54-234-255-218.compute-1.amazonaws.com:8080/fetchProfiles")
+resp, content = httplib2.Http().request("http://54.196.96.70:8080/fetchProfiles")
 
 try:
     f = open(".browser_profiles.json", "w")

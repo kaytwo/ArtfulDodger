@@ -116,7 +116,10 @@ var heartbeat = 1,
 	    }
         };
 
-        a_page.onResourceRequested = function (req) { };
+        a_page.onResourceRequested = function (req) { 
+	    //Generate ground truth
+	    //This is where the resource requested needs to be checked against adblockplus list.
+	};
 
         a_page.onResourceReceived = function (resp) {
             a_page.allResourceURLs.push(resp.url);
