@@ -46,7 +46,7 @@ do
 done
 END=$(date +"%s")
 
-CRAWLED=$(python /home/ec2-user/crawler_extra/get_len.py)
+CRAWLED=$(python /home/ec2-user/ArtfulDodger/.get_len.py)
 echo $NUM_URLS " " $NUM_INSTANCES " " $BROWSER_ID " time: " $(($END - $START)) " crawled: " $CRAWLED >> /tmp/crawl_analytics.txt
 
 python result_sink.py
